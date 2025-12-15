@@ -53,14 +53,17 @@ const DEFAULT_SUPABASE_URL = 'https://zgjcdrpcdnommxtahdpr.supabase.co';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-// Create client (will be non-functional without anon key)
-export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+// Create client only if anon key is available (prevents crash on missing config)
+// Using null when not configured allows the app to still load with degraded functionality
+export const supabase: SupabaseClient | null = supabaseAnonKey
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
 
 /**
  * Check if Supabase is properly configured with required credentials
  */
 export function isSupabaseConfigured(): boolean {
-  return !!supabaseAnonKey;
+  return supabase !== null;
 }
 
 /**

@@ -4,42 +4,55 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Political Donor Tracker is a React TypeScript application for tracking campaign finance data, lobbyist activities, and political contributions. It aggregates data from 55+ political finance sources including FEC, OpenSecrets, Senate LDA, and state-level portals. Features D3.js network visualizations for donor-media relationships powered by Supabase.
+Political Donor Tracker is a React TypeScript application for tracking campaign finance data, lobbyist activities, and political contributions. It aggregates data from 55+ political finance sources including FEC, Senate LDA, and ProPublica. Features D3.js network visualizations for donor-media relationships powered by Supabase.
 
 ## Development Commands
 
 ```bash
-npm run dev       # Start Vite development server (localhost:5173)
-npm run build     # Run ESLint + TypeScript check + Vite production build
-npm run lint      # Run ESLint only
-npm run preview   # Preview production build locally
+npm run dev           # Start Vite development server (localhost:5173)
+npm run build         # Run ESLint + TypeScript check + Vite production build
+npm run lint          # Run ESLint only
+npm run preview       # Preview production build locally
+npm test              # Run vitest in watch mode
+npm run test:run      # Run tests once
+npm run test:coverage # Run tests with coverage report
+
+# Run single test file or by pattern
+npm test -- src/services/feedCache.test.ts   # Run specific test file
+npm test -- -t "cache expiration"            # Run tests matching pattern
 ```
 
 ## Architecture
 
-### Core Application Structure
+### Component Structure
 
 - **Entry**: `src/main.tsx` → `src/App.tsx` → `src/components/PoliticalDonorTracker.tsx`
-- **Single Component UI**: The entire dashboard is in `PoliticalDonorTracker.tsx` with tabs: Overview, Donors, Recipients, Lobbyists, Network, Data Sources, Live Feed
+- **Tab Components** (`src/components/tabs/`): DashboardTab, DonorsTab, RecipientsTab, LobbyistsTab, NetworkTab, SourcesTab, FeedTab
+- **Card Components** (`src/components/cards/`): DonorCard, RecipientCard, LobbyistCard, SourceCard
+- **D3 Visualizations** (`src/components/d3/`): DonorMediaNetwork, useForceLayout
+- **Error Handling**: ErrorBoundary component with HOC wrapper
 
-### Data Layer
+### Service Layer
 
-**Services** (`src/services/`):
-- `politicalApiService.ts` - Singleton for OpenFEC, Senate LDA, ProPublica APIs with rate limiting, caching, fallback to mock data
-- `supabaseService.ts` - Singleton for Supabase queries (donors, media_funding, PAC contributions) with TTL caching
-- `feedService.ts` - RSS feed aggregation with multi-proxy distribution and automatic fallback
-- `feedCache.ts` - TTL-based in-memory cache with automatic expiry cleanup
+Services use dependency injection via interfaces for testability (`src/services/interfaces/`):
 
-**Hooks** (`src/hooks/`):
-- `usePoliticalData.ts` - FEC/Senate API state, loading/error handling, search actions, mock data indicators
-- `useSupabaseData.ts` - Supabase data fetching for enriched donor profiles and network visualization data
+- `politicalApiService.ts` - OpenFEC, Senate LDA, ProPublica APIs with rate limiting and caching
+- `supabaseService.ts` - Supabase queries for donors, media_funding, PAC contributions
+- `feedService.ts` - RSS feed aggregation with multi-proxy distribution using DOMParser
+- `feedCache.ts` - TTL-based in-memory cache
 
-### D3.js Visualizations (`src/components/d3/`)
+Interface contracts: `ICache`, `ISupabaseService`, `IFeedService`, `IPoliticalApiService`
 
-- `DonorMediaNetwork.tsx` - Force-directed network graph showing donor-media ownership/funding relationships
-- `useForceLayout.ts` - D3 force simulation hook (D3 for physics, React for rendering)
-- Node types: donors (sized by net worth) and media outlets (colored by type)
-- Interactive: drag nodes, zoom, filter by relationship type, hover tooltips
+**Important**: Services return real API data only - no mock data fallbacks. When APIs are unavailable, errors are surfaced to users.
+
+### Hooks
+
+- `usePoliticalData.ts` - FEC/Senate API state, loading/error handling, search actions
+- `useSupabaseData.ts` - Supabase data fetching for network visualization
+
+### D3 + React Integration
+
+D3 handles physics/layout calculations, React handles DOM rendering. The simulation runs in useEffect with `useRef` for positions during active simulation, `useState` only when simulation settles (alpha < 0.1).
 
 ### Data Flow for Network Visualization
 
@@ -49,38 +62,34 @@ npm run preview   # Preview production build locally
 4. `useForceLayout` runs D3 force simulation, returns positioned nodes/links
 5. React renders SVG elements based on simulation output
 
-### Configuration
-
-**Data Sources** (`src/config/politicalFinanceSources.ts`):
-- 55+ sources with metadata (category, reliability, coverage, update frequency)
-- Categories: FEC_FEDERAL, OPENSECRETS, LOBBYIST_DISCLOSURE, STATE_FINANCE, NONPROFIT_DARK_MONEY, WATCHDOG_INVESTIGATIVE, FOREIGN_INFLUENCE, ETHICS_COMPLIANCE
-
-### Type System
-
-- `src/types/political.ts` - FEC API types, LDA types, profile types
-- `src/types/supabase.ts` - Supabase table types, NetworkNode, NetworkLink, DonorMediaNetwork
-- `src/types/index.ts` - Feed-related types
-
 ## Environment Variables
 
 ```
 VITE_OPENFEC_API_KEY     # Optional - falls back to DEMO_KEY with stricter rate limits
-VITE_SUPABASE_URL        # Supabase project URL (stonk-data: zgjcdrpcdnommxtahdpr)
+VITE_SUPABASE_URL        # Supabase project URL
 VITE_SUPABASE_ANON_KEY   # Supabase anonymous key for client-side queries
 ```
+
+Environment validation in `src/lib/supabase.ts` logs warnings in development when variables are missing.
 
 ## Key Patterns
 
 ### API Response Handling
-All API methods use graceful degradation - return data with source indicator, fall back to mock data on error.
+Profile fetch methods return `{ data: T | null; source: 'api'; error?: string }`. No mock data - errors are surfaced to users with helpful messages.
 
 ### Supabase Integration
-- Client initialized in `src/lib/supabase.ts`
-- Service layer checks `isConfigured()` before queries
+- Client initialized in `src/lib/supabase.ts` with `validateEnvironment()`
+- Service layer checks `isSupabaseConfigured()` before queries
 - Tables: `donors`, `media_funding`, `pac_contributions`, `pac_contributions_detail`, `political_recipients`
 
-### D3 + React Integration
-D3 handles physics/layout calculations, React handles DOM rendering. The simulation runs in a useEffect, updates React state on tick events.
+### RSS Feed Parsing
+Uses browser-native DOMParser (not regex) for XML parsing. Multi-proxy fallback: rss2json → allorigins → corsproxy.
+
+## Type System
+
+- `src/types/political.ts` - FEC API types, LDA types, profile types
+- `src/types/supabase.ts` - Supabase table types, NetworkNode, NetworkLink
+- `src/types/index.ts` - Feed-related types
 
 ## Tech Stack
 
@@ -88,7 +97,16 @@ D3 handles physics/layout calculations, React handles DOM rendering. The simulat
 - Tailwind CSS 3.4
 - Recharts (bar/pie charts), D3.js v7 (network graphs)
 - Supabase (enriched donor data)
-- Lucide React (icons)
+- Vitest + Testing Library (testing)
+
+## Testing
+
+Test setup in `src/test/setup.ts` provides global mocks for:
+- `ResizeObserver` (D3 components)
+- `matchMedia` (UI components)
+- `IntersectionObserver`
+
+Existing tests: `src/services/feedCache.test.ts`, `src/utils/formatting.test.ts`
 
 ## Deployment
 

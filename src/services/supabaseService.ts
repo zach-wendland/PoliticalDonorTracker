@@ -51,7 +51,7 @@ export class SupabaseService implements ISupabaseService {
   // ============================================================================
 
   async getDonors(): Promise<SupabaseDonor[]> {
-    if (!this.isConfigured()) return [];
+    if (!this.isConfigured() || !supabase) return [];
 
     const cacheKey = 'supabase_donors_all';
     const cached = this.cache.get<SupabaseDonor[]>(cacheKey);
@@ -72,7 +72,7 @@ export class SupabaseService implements ISupabaseService {
   }
 
   async getDonorById(id: string): Promise<SupabaseDonor | null> {
-    if (!this.isConfigured()) return null;
+    if (!this.isConfigured() || !supabase) return null;
 
     const cacheKey = `supabase_donor_${id}`;
     const cached = this.cache.get<SupabaseDonor>(cacheKey);
@@ -94,7 +94,7 @@ export class SupabaseService implements ISupabaseService {
   }
 
   async searchDonorsByName(name: string): Promise<SupabaseDonor[]> {
-    if (!this.isConfigured()) return [];
+    if (!this.isConfigured() || !supabase) return [];
 
     const { data, error } = await supabase
       .from('donors')
@@ -115,7 +115,7 @@ export class SupabaseService implements ISupabaseService {
   // ============================================================================
 
   async getMediaFunding(): Promise<MediaFunding[]> {
-    if (!this.isConfigured()) return [];
+    if (!this.isConfigured() || !supabase) return [];
 
     const cacheKey = 'supabase_media_funding_all';
     const cached = this.cache.get<MediaFunding[]>(cacheKey);
@@ -136,7 +136,7 @@ export class SupabaseService implements ISupabaseService {
   }
 
   async getMediaFundingByDonor(donorId: string): Promise<MediaFunding[]> {
-    if (!this.isConfigured()) return [];
+    if (!this.isConfigured() || !supabase) return [];
 
     const { data, error } = await supabase
       .from('media_funding')
@@ -156,7 +156,7 @@ export class SupabaseService implements ISupabaseService {
   // ============================================================================
 
   async getPacContributions(): Promise<PacContribution[]> {
-    if (!this.isConfigured()) return [];
+    if (!this.isConfigured() || !supabase) return [];
 
     const cacheKey = 'supabase_pac_contributions_all';
     const cached = this.cache.get<PacContribution[]>(cacheKey);
@@ -177,7 +177,7 @@ export class SupabaseService implements ISupabaseService {
   }
 
   async getPacContributionDetails(): Promise<PacContributionDetail[]> {
-    if (!this.isConfigured()) return [];
+    if (!this.isConfigured() || !supabase) return [];
 
     const cacheKey = 'supabase_pac_details_all';
     const cached = this.cache.get<PacContributionDetail[]>(cacheKey);
@@ -198,7 +198,7 @@ export class SupabaseService implements ISupabaseService {
   }
 
   async getPacContributionsByRecipient(recipientName: string): Promise<PacContributionDetail[]> {
-    if (!this.isConfigured()) return [];
+    if (!this.isConfigured() || !supabase) return [];
 
     const { data, error } = await supabase
       .from('pac_contributions_detail')
@@ -219,7 +219,7 @@ export class SupabaseService implements ISupabaseService {
   // ============================================================================
 
   async getPoliticalRecipients(): Promise<PoliticalRecipient[]> {
-    if (!this.isConfigured()) return [];
+    if (!this.isConfigured() || !supabase) return [];
 
     const cacheKey = 'supabase_recipients_all';
     const cached = this.cache.get<PoliticalRecipient[]>(cacheKey);
@@ -244,7 +244,7 @@ export class SupabaseService implements ISupabaseService {
   // ============================================================================
 
   async getOrganizations(): Promise<Organization[]> {
-    if (!this.isConfigured()) return [];
+    if (!this.isConfigured() || !supabase) return [];
 
     const { data, error } = await supabase
       .from('organizations')
