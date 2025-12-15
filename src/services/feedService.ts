@@ -3,16 +3,11 @@
 import { feedCache } from './feedCache';
 import { isValidUrl, parseDate } from '../utils/validators';
 import { calculateFreshnessScore } from '../utils/analytics';
+import type { ICache, IFeedService, FeedResult } from './interfaces';
 import type { FeedItem, SourceItem, RSSItem, RSSResponse, FeedStatus } from '../types';
 
 // Re-export types for consumers
-export type { FeedItem, SourceItem, FeedStatus };
-
-export interface FeedResult {
-  items: FeedItem[];
-  status: Record<string | number, FeedStatus>;
-  errors: Record<string | number, string>;
-}
+export type { FeedItem, SourceItem, FeedStatus, FeedResult };
 
 // Proxy configuration for load distribution
 interface ProxyConfig {
@@ -94,13 +89,18 @@ const RSS_PROXIES: ProxyConfig[] = [
   }
 ];
 
-export class FeedService {
+export class FeedService implements IFeedService {
   private static instance: FeedService;
+  private cache: ICache;
   private requestCache: Map<string, Promise<FeedItem[]>> = new Map();
   private proxyIndex: number = 0;
   private proxyFailures: Map<string, number> = new Map();
+  private cacheTTLMinutes: number;
 
-  private constructor() {}
+  constructor(cache: ICache = feedCache, cacheTTLMinutes: number = 15) {
+    this.cache = cache;
+    this.cacheTTLMinutes = cacheTTLMinutes;
+  }
 
   static getInstance(): FeedService {
     if (!FeedService.instance) {
@@ -152,7 +152,7 @@ export class FeedService {
     const cacheKey = `feeds_${sources.map(s => s.id).join('_')}`;
 
     // Check cache first
-    const cached = feedCache.get<FeedResult>(cacheKey);
+    const cached = this.cache.get<FeedResult>(cacheKey);
     if (cached) {
       console.log('Serving from cache:', cacheKey);
       return cached;
@@ -176,7 +176,7 @@ export class FeedService {
     };
 
     // Cache the result
-    feedCache.set(cacheKey, result, 15); // 15 minutes
+    this.cache.set(cacheKey, result, this.cacheTTLMinutes);
 
     return result;
   }
@@ -192,7 +192,7 @@ export class FeedService {
     const cacheKey = `feed_${source.id}`;
 
     // Check cache for individual feed
-    const cached = feedCache.get<FeedItem[]>(cacheKey);
+    const cached = this.cache.get<FeedItem[]>(cacheKey);
     if (cached) {
       statusMap[source.id] = 'ok';
       return cached;
@@ -314,7 +314,7 @@ export class FeedService {
 
         // Cache individual feed result
         if (validItems.length > 0) {
-          feedCache.set(cacheKey, validItems, 15);
+          this.cache.set(cacheKey, validItems, this.cacheTTLMinutes);
         }
 
         return validItems;
@@ -330,7 +330,7 @@ export class FeedService {
    * Force refresh by clearing cache
    */
   clearCache(): void {
-    feedCache.clear();
+    this.cache.clear();
     this.requestCache.clear();
   }
 
@@ -338,7 +338,7 @@ export class FeedService {
    * Clear cache for specific source
    */
   clearSourceCache(sourceId: string | number): void {
-    feedCache.delete(`feed_${sourceId}`);
+    this.cache.delete(`feed_${sourceId}`);
   }
 
   /**
@@ -349,5 +349,25 @@ export class FeedService {
   }
 }
 
-// Export singleton instance
+/**
+ * Factory function for creating FeedService instances
+ * Use this for dependency injection in tests
+ *
+ * @param cache - Cache implementation (defaults to feedCache singleton)
+ * @param cacheTTLMinutes - Cache TTL in minutes (defaults to 15)
+ * @returns New FeedService instance
+ *
+ * @example
+ * // In tests:
+ * const mockCache = { get: vi.fn(), set: vi.fn(), clear: vi.fn(), ... };
+ * const service = createFeedService(mockCache, 5);
+ */
+export function createFeedService(
+  cache: ICache = feedCache,
+  cacheTTLMinutes: number = 15
+): IFeedService {
+  return new FeedService(cache, cacheTTLMinutes);
+}
+
+// Export singleton instance for app use
 export const feedService = FeedService.getInstance();

@@ -3,6 +3,7 @@
 
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { feedCache } from './feedCache';
+import type { ICache, ISupabaseService } from './interfaces';
 import type {
   SupabaseDonor,
   MediaFunding,
@@ -24,10 +25,15 @@ const CACHE_TTL = {
   network: 30,
 };
 
-export class SupabaseService {
+export class SupabaseService implements ISupabaseService {
   private static instance: SupabaseService;
+  private cache: ICache;
+  private cacheTTL: typeof CACHE_TTL;
 
-  private constructor() {}
+  constructor(cache: ICache = feedCache, cacheTTL: Partial<typeof CACHE_TTL> = {}) {
+    this.cache = cache;
+    this.cacheTTL = { ...CACHE_TTL, ...cacheTTL };
+  }
 
   static getInstance(): SupabaseService {
     if (!SupabaseService.instance) {
@@ -48,7 +54,7 @@ export class SupabaseService {
     if (!this.isConfigured()) return [];
 
     const cacheKey = 'supabase_donors_all';
-    const cached = feedCache.get<SupabaseDonor[]>(cacheKey);
+    const cached = this.cache.get<SupabaseDonor[]>(cacheKey);
     if (cached) return cached;
 
     const { data, error } = await supabase
@@ -61,7 +67,7 @@ export class SupabaseService {
       return [];
     }
 
-    feedCache.set(cacheKey, data || [], CACHE_TTL.donors);
+    this.cache.set(cacheKey, data || [], this.cacheTTL.donors);
     return data || [];
   }
 
@@ -69,7 +75,7 @@ export class SupabaseService {
     if (!this.isConfigured()) return null;
 
     const cacheKey = `supabase_donor_${id}`;
-    const cached = feedCache.get<SupabaseDonor>(cacheKey);
+    const cached = this.cache.get<SupabaseDonor>(cacheKey);
     if (cached) return cached;
 
     const { data, error } = await supabase
@@ -83,7 +89,7 @@ export class SupabaseService {
       return null;
     }
 
-    feedCache.set(cacheKey, data, CACHE_TTL.donors);
+    this.cache.set(cacheKey, data, this.cacheTTL.donors);
     return data;
   }
 
@@ -112,7 +118,7 @@ export class SupabaseService {
     if (!this.isConfigured()) return [];
 
     const cacheKey = 'supabase_media_funding_all';
-    const cached = feedCache.get<MediaFunding[]>(cacheKey);
+    const cached = this.cache.get<MediaFunding[]>(cacheKey);
     if (cached) return cached;
 
     const { data, error } = await supabase
@@ -125,7 +131,7 @@ export class SupabaseService {
       return [];
     }
 
-    feedCache.set(cacheKey, data || [], CACHE_TTL.mediaFunding);
+    this.cache.set(cacheKey, data || [], this.cacheTTL.mediaFunding);
     return data || [];
   }
 
@@ -153,7 +159,7 @@ export class SupabaseService {
     if (!this.isConfigured()) return [];
 
     const cacheKey = 'supabase_pac_contributions_all';
-    const cached = feedCache.get<PacContribution[]>(cacheKey);
+    const cached = this.cache.get<PacContribution[]>(cacheKey);
     if (cached) return cached;
 
     const { data, error } = await supabase
@@ -166,7 +172,7 @@ export class SupabaseService {
       return [];
     }
 
-    feedCache.set(cacheKey, data || [], CACHE_TTL.pacContributions);
+    this.cache.set(cacheKey, data || [], this.cacheTTL.pacContributions);
     return data || [];
   }
 
@@ -174,7 +180,7 @@ export class SupabaseService {
     if (!this.isConfigured()) return [];
 
     const cacheKey = 'supabase_pac_details_all';
-    const cached = feedCache.get<PacContributionDetail[]>(cacheKey);
+    const cached = this.cache.get<PacContributionDetail[]>(cacheKey);
     if (cached) return cached;
 
     const { data, error } = await supabase
@@ -187,7 +193,7 @@ export class SupabaseService {
       return [];
     }
 
-    feedCache.set(cacheKey, data || [], CACHE_TTL.pacContributions);
+    this.cache.set(cacheKey, data || [], this.cacheTTL.pacContributions);
     return data || [];
   }
 
@@ -216,7 +222,7 @@ export class SupabaseService {
     if (!this.isConfigured()) return [];
 
     const cacheKey = 'supabase_recipients_all';
-    const cached = feedCache.get<PoliticalRecipient[]>(cacheKey);
+    const cached = this.cache.get<PoliticalRecipient[]>(cacheKey);
     if (cached) return cached;
 
     const { data, error } = await supabase
@@ -229,7 +235,7 @@ export class SupabaseService {
       return [];
     }
 
-    feedCache.set(cacheKey, data || [], CACHE_TTL.recipients);
+    this.cache.set(cacheKey, data || [], this.cacheTTL.recipients);
     return data || [];
   }
 
@@ -263,7 +269,7 @@ export class SupabaseService {
     }
 
     const cacheKey = 'supabase_donor_media_network';
-    const cached = feedCache.get<DonorMediaNetwork>(cacheKey);
+    const cached = this.cache.get<DonorMediaNetwork>(cacheKey);
     if (cached) return cached;
 
     // Fetch donors and media funding in parallel
@@ -311,7 +317,7 @@ export class SupabaseService {
       links,
     };
 
-    feedCache.set(cacheKey, network, CACHE_TTL.network);
+    this.cache.set(cacheKey, network, this.cacheTTL.network);
     return network;
   }
 
@@ -366,14 +372,34 @@ export class SupabaseService {
 
   clearCache(): void {
     // Clear all supabase-related cache entries
-    feedCache.delete('supabase_donors_all');
-    feedCache.delete('supabase_media_funding_all');
-    feedCache.delete('supabase_pac_contributions_all');
-    feedCache.delete('supabase_pac_details_all');
-    feedCache.delete('supabase_recipients_all');
-    feedCache.delete('supabase_donor_media_network');
+    this.cache.delete('supabase_donors_all');
+    this.cache.delete('supabase_media_funding_all');
+    this.cache.delete('supabase_pac_contributions_all');
+    this.cache.delete('supabase_pac_details_all');
+    this.cache.delete('supabase_recipients_all');
+    this.cache.delete('supabase_donor_media_network');
   }
 }
 
-// Export singleton instance
+/**
+ * Factory function for creating SupabaseService instances
+ * Use this for dependency injection in tests
+ *
+ * @param cache - Cache implementation (defaults to feedCache singleton)
+ * @param cacheTTL - Cache TTL overrides
+ * @returns New SupabaseService instance
+ *
+ * @example
+ * // In tests:
+ * const mockCache = { get: vi.fn(), set: vi.fn(), delete: vi.fn(), ... };
+ * const service = createSupabaseService(mockCache);
+ */
+export function createSupabaseService(
+  cache: ICache = feedCache,
+  cacheTTL: Partial<typeof CACHE_TTL> = {}
+): ISupabaseService {
+  return new SupabaseService(cache, cacheTTL);
+}
+
+// Export singleton instance for app use
 export const supabaseService = SupabaseService.getInstance();

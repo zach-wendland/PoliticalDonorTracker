@@ -1,5 +1,6 @@
 // D3 Force Simulation Hook for Network Graphs
 // Uses D3 for physics calculations, React for rendering
+// OPTIMIZED: Uses requestAnimationFrame and batched state updates
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import * as d3 from 'd3';
@@ -58,6 +59,11 @@ export function useForceLayout(
   const [isSimulating, setIsSimulating] = useState(true);
 
   const simulationRef = useRef<d3.Simulation<SimulationNode, SimulationLink> | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const lastUpdateRef = useRef<number>(0);
+
+  // Throttle state updates to ~30fps max during active simulation
+  const UPDATE_INTERVAL_MS = 33;
 
   // Initialize simulation
   useEffect(() => {
@@ -96,17 +102,46 @@ export function useForceLayout(
       .force('x', d3.forceX(width / 2).strength(0.05))
       .force('y', d3.forceY(height / 2).strength(0.05));
 
-    // Update state on each tick
-    simulation.on('tick', () => {
-      setNodes([...simulation.nodes()]);
+    // OPTIMIZED: Throttled state updates using requestAnimationFrame
+    // Instead of updating React state 60 times/second, we batch updates
+    const updateState = () => {
+      const now = performance.now();
       const linkForce = simulation.force<d3.ForceLink<SimulationNode, SimulationLink>>('link');
+
+      // Always update state - we're already throttled by RAF scheduling
+      setNodes([...simulation.nodes()]);
       if (linkForce) {
         setLinks([...linkForce.links()]);
+      }
+      lastUpdateRef.current = now;
+    };
+
+    // Schedule updates at ~30fps during active simulation
+    const scheduleUpdate = () => {
+      if (simulation.alpha() > 0.01) {
+        const now = performance.now();
+        if (now - lastUpdateRef.current >= UPDATE_INTERVAL_MS) {
+          updateState();
+        }
+        rafRef.current = requestAnimationFrame(scheduleUpdate);
+      } else {
+        // Final update when simulation settles
+        updateState();
+        setIsSimulating(false);
+      }
+    };
+
+    simulation.on('tick', () => {
+      // Only schedule RAF if not already scheduled
+      if (rafRef.current === null) {
+        rafRef.current = requestAnimationFrame(scheduleUpdate);
       }
     });
 
     // Track when simulation ends
     simulation.on('end', () => {
+      // Final state update
+      updateState();
       setIsSimulating(false);
     });
 
@@ -115,6 +150,10 @@ export function useForceLayout(
     // Cleanup
     return () => {
       simulation.stop();
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
     };
   }, [inputNodes, inputLinks, width, height, chargeStrength, linkDistance, collisionRadius]);
 
@@ -122,6 +161,7 @@ export function useForceLayout(
   const restartSimulation = useCallback(() => {
     if (simulationRef.current) {
       setIsSimulating(true);
+      rafRef.current = null; // Allow new RAF scheduling
       simulationRef.current.alpha(1).restart();
     }
   }, []);

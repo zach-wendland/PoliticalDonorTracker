@@ -2,6 +2,7 @@
 // Shows funding/ownership relationships between wealthy donors and media companies
 
 import { useRef, useState, useCallback, useMemo } from 'react';
+// useCallback already imported - used for isHighlighted optimization
 import { Network, DollarSign, Tv, RefreshCw, ZoomIn, ZoomOut } from 'lucide-react';
 import { useForceLayout, type SimulationNode, type SimulationLink } from './useForceLayout';
 import type { DonorMediaNetwork as NetworkData } from '../../types/supabase';
@@ -125,19 +126,27 @@ export function DonorMediaNetwork({
     return MEDIA_COLORS[node.outletType || 'Other'] || MEDIA_COLORS.Other;
   };
 
-  // Check if node/link is highlighted
-  const isHighlighted = (node: SimulationNode): boolean => {
-    if (!selectedNode && !hoveredNode) return true;
+  // OPTIMIZED: Pre-compute highlighted node IDs using useMemo
+  // Previously this was O(nodes × links) per render, now it's O(links) once + O(1) per node
+  const highlightedNodeIds = useMemo(() => {
     const activeNode = selectedNode || hoveredNode;
-    if (!activeNode) return true;
-    if (node.id === activeNode.id) return true;
-    return links.some(l => {
+    if (!activeNode) return null; // null means all nodes are highlighted
+
+    const ids = new Set<string>([activeNode.id]);
+    links.forEach(l => {
       const sourceId = typeof l.source === 'string' ? l.source : l.source.id;
       const targetId = typeof l.target === 'string' ? l.target : l.target.id;
-      return (sourceId === activeNode.id && targetId === node.id) ||
-             (targetId === activeNode.id && sourceId === node.id);
+      if (sourceId === activeNode.id) ids.add(targetId);
+      if (targetId === activeNode.id) ids.add(sourceId);
     });
-  };
+    return ids;
+  }, [selectedNode, hoveredNode, links]);
+
+  // O(1) lookup instead of O(links) search
+  const isHighlighted = useCallback((node: SimulationNode): boolean => {
+    if (highlightedNodeIds === null) return true;
+    return highlightedNodeIds.has(node.id);
+  }, [highlightedNodeIds]);
 
   // Get unique relationship types for filter
   const relationshipTypes = useMemo(() => {

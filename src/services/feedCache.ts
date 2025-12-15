@@ -1,12 +1,15 @@
 // Feed caching service for performance optimization
 
+import type { ICacheWithStats, CacheStats } from './interfaces';
+import { RSS_CONFIG } from '../config/api';
+
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
   expiresAt: number;
 }
 
-export class FeedCache {
+export class FeedCache implements ICacheWithStats {
   private cache: Map<string, CacheEntry<unknown>> = new Map();
   private defaultTTL: number;
 
@@ -92,7 +95,7 @@ export class FeedCache {
   /**
    * Get cache statistics
    */
-  getStats() {
+  getStats(): CacheStats {
     const now = Date.now();
     let valid = 0;
     let expired = 0;
@@ -113,12 +116,20 @@ export class FeedCache {
   }
 }
 
-// Singleton instance
-export const feedCache = new FeedCache(15); // 15 minute default TTL
+/**
+ * Factory function for creating cache instances
+ * Use this for dependency injection in tests
+ */
+export function createCache(defaultTTLMinutes: number = RSS_CONFIG.defaultTTLMinutes): ICacheWithStats {
+  return new FeedCache(defaultTTLMinutes);
+}
 
-// Cleanup expired entries every 5 minutes
+// Singleton instance
+export const feedCache = new FeedCache(RSS_CONFIG.defaultTTLMinutes);
+
+// Cleanup expired entries periodically
 if (typeof window !== 'undefined') {
   setInterval(() => {
     feedCache.clearExpired();
-  }, 5 * 60 * 1000);
+  }, RSS_CONFIG.cleanupIntervalMinutes * 60 * 1000);
 }

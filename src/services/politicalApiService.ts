@@ -2,6 +2,7 @@
 // Handles OpenFEC, Senate LDA, and ProPublica Nonprofit APIs
 
 import { feedCache } from './feedCache';
+import type { ICache, IPoliticalApiService, PoliticalApiConfig } from './interfaces';
 import type {
   FECCandidate,
   FECCommittee,
@@ -30,40 +31,42 @@ import {
   SAMPLE_RECIPIENTS,
 } from '../config/politicalFinanceSources';
 
-// API Configuration
-const API_CONFIG = {
-  openfec: {
-    baseUrl: 'https://api.open.fec.gov/v1',
-    perPage: 20,
-    rateLimit: { maxCalls: 1000, windowMs: 60 * 60 * 1000 }, // 1000/hour
-  },
-  senateLDA: {
-    baseUrl: 'https://lda.senate.gov/api/v1',
-    perPage: 25,
-  },
-  propublica: {
-    baseUrl: 'https://projects.propublica.org/nonprofits/api/v2',
-    perPage: 25,
-  },
-};
+import { API_CONFIG, DEFAULT_CACHE_TTL } from '../config/api';
 
-// Cache TTL in minutes
-const CACHE_TTL = {
-  candidates: 60,
-  committees: 60,
-  contributions: 15,
-  disbursements: 15,
-  lobbyists: 30,
-  nonprofits: 60,
-  profiles: 15,
-};
+// Resolved config type with required cacheTTL
+interface ResolvedConfig {
+  openfecApiKey?: string;
+  openfecBaseUrl: string;
+  senateLDABaseUrl: string;
+  propublicaBaseUrl: string;
+  cacheTTL: Required<NonNullable<PoliticalApiConfig['cacheTTL']>>;
+}
 
-export class PoliticalApiService {
+export class PoliticalApiService implements IPoliticalApiService {
   private static instance: PoliticalApiService;
+  private cache: ICache;
+  private config: ResolvedConfig;
   private requestCache: Map<string, Promise<unknown>> = new Map();
   private rateLimitCalls: Map<string, number[]> = new Map();
 
-  private constructor() {}
+  constructor(cache: ICache = feedCache, config: PoliticalApiConfig = {}) {
+    this.cache = cache;
+    this.config = {
+      openfecApiKey: config.openfecApiKey,
+      openfecBaseUrl: config.openfecBaseUrl ?? API_CONFIG.openfec.baseUrl,
+      senateLDABaseUrl: config.senateLDABaseUrl ?? API_CONFIG.senateLDA.baseUrl,
+      propublicaBaseUrl: config.propublicaBaseUrl ?? API_CONFIG.propublica.baseUrl,
+      cacheTTL: {
+        candidates: config.cacheTTL?.candidates ?? DEFAULT_CACHE_TTL.candidates,
+        committees: config.cacheTTL?.committees ?? DEFAULT_CACHE_TTL.committees,
+        contributions: config.cacheTTL?.contributions ?? DEFAULT_CACHE_TTL.contributions,
+        disbursements: config.cacheTTL?.disbursements ?? DEFAULT_CACHE_TTL.disbursements,
+        lobbyists: config.cacheTTL?.lobbyists ?? DEFAULT_CACHE_TTL.lobbyists,
+        nonprofits: config.cacheTTL?.nonprofits ?? DEFAULT_CACHE_TTL.nonprofits,
+        profiles: config.cacheTTL?.profiles ?? DEFAULT_CACHE_TTL.profiles,
+      },
+    };
+  }
 
   static getInstance(): PoliticalApiService {
     if (!PoliticalApiService.instance) {
@@ -77,11 +80,11 @@ export class PoliticalApiService {
   // ============================================================================
 
   private getApiKey(): string {
-    return import.meta.env.VITE_OPENFEC_API_KEY || 'DEMO_KEY';
+    return this.config.openfecApiKey || import.meta.env.VITE_OPENFEC_API_KEY || 'DEMO_KEY';
   }
 
   private hasApiKey(): boolean {
-    return !!import.meta.env.VITE_OPENFEC_API_KEY;
+    return !!(this.config.openfecApiKey || import.meta.env.VITE_OPENFEC_API_KEY);
   }
 
   private trackApiCall(provider: string): void {
@@ -161,7 +164,7 @@ export class PoliticalApiService {
     ttlMinutes: number
   ): Promise<T> {
     // Check cache
-    const cached = feedCache.get<T>(cacheKey);
+    const cached = this.cache.get<T>(cacheKey);
     if (cached) {
       return cached;
     }
@@ -178,7 +181,7 @@ export class PoliticalApiService {
 
     try {
       const result = await request;
-      feedCache.set(cacheKey, result, ttlMinutes);
+      this.cache.set(cacheKey, result, ttlMinutes);
       return result;
     } finally {
       this.requestCache.delete(cacheKey);
@@ -190,7 +193,7 @@ export class PoliticalApiService {
   // ============================================================================
 
   private buildOpenFECUrl(endpoint: string, params: object): string {
-    const url = new URL(`${API_CONFIG.openfec.baseUrl}${endpoint}`);
+    const url = new URL(`${this.config.openfecBaseUrl}${endpoint}`);
     url.searchParams.set('api_key', this.getApiKey());
     url.searchParams.set('per_page', String(API_CONFIG.openfec.perPage));
 
@@ -214,7 +217,7 @@ export class PoliticalApiService {
       this.trackApiCall('openfec');
       const url = this.buildOpenFECUrl('/candidates/search/', params);
       return this.fetchWithTimeout<FECApiResponse<FECCandidate>>(url);
-    }, CACHE_TTL.candidates);
+    }, this.config.cacheTTL.candidates);
   }
 
   async searchCommittees(params: CommitteeSearchParams): Promise<FECApiResponse<FECCommittee>> {
@@ -228,7 +231,7 @@ export class PoliticalApiService {
       this.trackApiCall('openfec');
       const url = this.buildOpenFECUrl('/committees/', params);
       return this.fetchWithTimeout<FECApiResponse<FECCommittee>>(url);
-    }, CACHE_TTL.committees);
+    }, this.config.cacheTTL.committees);
   }
 
   async searchContributions(params: ContributionSearchParams): Promise<FECApiResponse<FECContribution>> {
@@ -246,7 +249,7 @@ export class PoliticalApiService {
         sort_hide_null: true,
       });
       return this.fetchWithTimeout<FECApiResponse<FECContribution>>(url);
-    }, CACHE_TTL.contributions);
+    }, this.config.cacheTTL.contributions);
   }
 
   async searchDisbursements(committeeId: string): Promise<FECApiResponse<FECDisbursement>> {
@@ -264,7 +267,7 @@ export class PoliticalApiService {
         sort_hide_null: true,
       });
       return this.fetchWithTimeout<FECApiResponse<FECDisbursement>>(url);
-    }, CACHE_TTL.disbursements);
+    }, this.config.cacheTTL.disbursements);
   }
 
   async searchIndependentExpenditures(candidateId?: string): Promise<FECApiResponse<FECIndependentExpenditure>> {
@@ -285,7 +288,7 @@ export class PoliticalApiService {
       }
       const url = this.buildOpenFECUrl('/schedules/schedule_e/', params);
       return this.fetchWithTimeout<FECApiResponse<FECIndependentExpenditure>>(url);
-    }, CACHE_TTL.contributions);
+    }, this.config.cacheTTL.contributions);
   }
 
   // ============================================================================
@@ -296,7 +299,7 @@ export class PoliticalApiService {
     const cacheKey = `lda_filings_${JSON.stringify(params)}`;
 
     return this.fetchWithCache(cacheKey, async () => {
-      const url = new URL(`${API_CONFIG.senateLDA.baseUrl}/filings/`);
+      const url = new URL(`${this.config.senateLDABaseUrl}/filings/`);
 
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined && value !== '') {
@@ -305,7 +308,7 @@ export class PoliticalApiService {
       });
 
       return this.fetchWithTimeout<LDAApiResponse>(url.toString());
-    }, CACHE_TTL.lobbyists);
+    }, this.config.cacheTTL.lobbyists);
   }
 
   // ============================================================================
@@ -316,23 +319,23 @@ export class PoliticalApiService {
     const cacheKey = `pp_nonprofit_search_${JSON.stringify(params)}`;
 
     return this.fetchWithCache(cacheKey, async () => {
-      const url = new URL(`${API_CONFIG.propublica.baseUrl}/search.json`);
+      const url = new URL(`${this.config.propublicaBaseUrl}/search.json`);
       url.searchParams.set('q', params.q);
       if (params.state) url.searchParams.set('state[id]', params.state);
       if (params.ntee) url.searchParams.set('ntee[id]', String(params.ntee));
       if (params.page) url.searchParams.set('page', String(params.page));
 
       return this.fetchWithTimeout<NonprofitSearchResponse>(url.toString());
-    }, CACHE_TTL.nonprofits);
+    }, this.config.cacheTTL.nonprofits);
   }
 
   async getNonprofitByEIN(ein: string): Promise<NonprofitOrganization> {
     const cacheKey = `pp_nonprofit_${ein}`;
 
     return this.fetchWithCache(cacheKey, async () => {
-      const url = `${API_CONFIG.propublica.baseUrl}/organizations/${ein}.json`;
+      const url = `${this.config.propublicaBaseUrl}/organizations/${ein}.json`;
       return this.fetchWithTimeout<NonprofitOrganization>(url);
-    }, CACHE_TTL.nonprofits);
+    }, this.config.cacheTTL.nonprofits);
   }
 
   // ============================================================================
@@ -584,7 +587,7 @@ export class PoliticalApiService {
   // ============================================================================
 
   clearCache(): void {
-    feedCache.clear();
+    this.cache.clear();
     this.requestCache.clear();
   }
 
@@ -593,5 +596,25 @@ export class PoliticalApiService {
   }
 }
 
-// Export singleton instance
+/**
+ * Factory function for creating PoliticalApiService instances
+ * Use this for dependency injection in tests
+ *
+ * @param cache - Cache implementation (defaults to feedCache singleton)
+ * @param config - API configuration overrides
+ * @returns New PoliticalApiService instance
+ *
+ * @example
+ * // In tests:
+ * const mockCache = { get: vi.fn(), set: vi.fn(), ... };
+ * const service = createPoliticalApiService(mockCache, { openfecApiKey: 'TEST_KEY' });
+ */
+export function createPoliticalApiService(
+  cache: ICache = feedCache,
+  config: PoliticalApiConfig = {}
+): IPoliticalApiService {
+  return new PoliticalApiService(cache, config);
+}
+
+// Export singleton instance for app use
 export const politicalApiService = PoliticalApiService.getInstance();
