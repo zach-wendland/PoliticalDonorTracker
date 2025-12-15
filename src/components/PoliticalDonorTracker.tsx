@@ -46,10 +46,6 @@ export default function PoliticalDonorTracker() {
     donorProfile,
     recipientProfile,
     lobbyistProfile,
-    // Sample data fallbacks
-    sampleDonors,
-    sampleRecipients,
-    sampleLobbyists,
     // Loading states
     isLoadingDonor,
     isLoadingRecipient,
@@ -60,10 +56,6 @@ export default function PoliticalDonorTracker() {
     lobbyistError,
     // API status
     apiStatus,
-    // Fallback indicators
-    donorUsingMock,
-    recipientUsingMock,
-    lobbyistUsingMock,
     // Actions
     searchDonor,
     searchRecipient,
@@ -224,8 +216,6 @@ export default function PoliticalDonorTracker() {
             isLoading={isLoadingDonor}
             error={donorError}
             profile={donorProfile}
-            sampleData={sampleDonors}
-            usingMock={donorUsingMock}
           />
         )}
 
@@ -239,8 +229,6 @@ export default function PoliticalDonorTracker() {
             isLoading={isLoadingRecipient}
             error={recipientError}
             profile={recipientProfile}
-            sampleData={sampleRecipients}
-            usingMock={recipientUsingMock}
           />
         )}
 
@@ -254,8 +242,6 @@ export default function PoliticalDonorTracker() {
             isLoading={isLoadingLobbyist}
             error={lobbyistError}
             profile={lobbyistProfile}
-            sampleData={sampleLobbyists}
-            usingMock={lobbyistUsingMock}
           />
         )}
 

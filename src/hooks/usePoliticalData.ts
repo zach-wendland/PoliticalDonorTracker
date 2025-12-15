@@ -12,11 +12,6 @@ import type {
   FECContribution,
   LDAFiling,
 } from '../types/political';
-import {
-  SAMPLE_DONORS,
-  SAMPLE_LOBBYISTS,
-  SAMPLE_RECIPIENTS,
-} from '../config/politicalFinanceSources';
 
 interface UsePoliticalDataReturn {
   // Profile data (for detail views)
@@ -29,11 +24,6 @@ interface UsePoliticalDataReturn {
   committees: FECCommittee[];
   contributions: FECContribution[];
   lobbyistFilings: LDAFiling[];
-
-  // Sample data fallbacks
-  sampleDonors: DonorProfile[];
-  sampleRecipients: RecipientProfile[];
-  sampleLobbyists: LobbyistProfile[];
 
   // Loading states
   isLoading: boolean;
@@ -53,12 +43,6 @@ interface UsePoliticalDataReturn {
 
   // API status
   apiStatus: PoliticalApiStatus;
-
-  // Fallback indicators
-  usingMockData: boolean;
-  donorUsingMock: boolean;
-  recipientUsingMock: boolean;
-  lobbyistUsingMock: boolean;
 
   // Actions
   searchDonor: (name: string) => Promise<void>;
@@ -99,11 +83,6 @@ export function usePoliticalData(): UsePoliticalDataReturn {
   const [recipientError, setRecipientError] = useState<string | null>(null);
   const [lobbyistError, setLobbyistError] = useState<string | null>(null);
 
-  // Mock data indicators
-  const [donorUsingMock, setDonorUsingMock] = useState(false);
-  const [recipientUsingMock, setRecipientUsingMock] = useState(false);
-  const [lobbyistUsingMock, setLobbyistUsingMock] = useState(false);
-
   // API status
   const [apiStatus, setApiStatus] = useState<PoliticalApiStatus>(
     politicalApiService.getApiStatus()
@@ -126,19 +105,16 @@ export function usePoliticalData(): UsePoliticalDataReturn {
 
     setIsLoadingDonor(true);
     setDonorError(null);
-    setDonorUsingMock(false);
 
     try {
       const result = await politicalApiService.fetchDonorProfile(name);
       setDonorProfile(result.data);
-      setDonorUsingMock(result.source === 'mock');
       if (result.error) {
         setDonorError(result.error);
       }
     } catch (err) {
       setDonorError(err instanceof Error ? err.message : 'Failed to fetch donor');
-      setDonorProfile(SAMPLE_DONORS[0] || null);
-      setDonorUsingMock(true);
+      setDonorProfile(null);
     } finally {
       setIsLoadingDonor(false);
       refreshApiStatus();
@@ -151,19 +127,16 @@ export function usePoliticalData(): UsePoliticalDataReturn {
 
     setIsLoadingRecipient(true);
     setRecipientError(null);
-    setRecipientUsingMock(false);
 
     try {
       const result = await politicalApiService.fetchRecipientProfile(query);
       setRecipientProfile(result.data);
-      setRecipientUsingMock(result.source === 'mock');
       if (result.error) {
         setRecipientError(result.error);
       }
     } catch (err) {
       setRecipientError(err instanceof Error ? err.message : 'Failed to fetch recipient');
-      setRecipientProfile(SAMPLE_RECIPIENTS[0] || null);
-      setRecipientUsingMock(true);
+      setRecipientProfile(null);
     } finally {
       setIsLoadingRecipient(false);
       refreshApiStatus();
@@ -176,19 +149,16 @@ export function usePoliticalData(): UsePoliticalDataReturn {
 
     setIsLoadingLobbyist(true);
     setLobbyistError(null);
-    setLobbyistUsingMock(false);
 
     try {
       const result = await politicalApiService.fetchLobbyistProfile(name);
       setLobbyistProfile(result.data);
-      setLobbyistUsingMock(result.source === 'mock');
       if (result.error) {
         setLobbyistError(result.error);
       }
     } catch (err) {
       setLobbyistError(err instanceof Error ? err.message : 'Failed to fetch lobbyist');
-      setLobbyistProfile(SAMPLE_LOBBYISTS[0] || null);
-      setLobbyistUsingMock(true);
+      setLobbyistProfile(null);
     } finally {
       setIsLoadingLobbyist(false);
       refreshApiStatus();
@@ -286,9 +256,6 @@ export function usePoliticalData(): UsePoliticalDataReturn {
   const isLoading = isLoadingDonor || isLoadingRecipient || isLoadingLobbyist ||
                     isLoadingCandidates || isLoadingCommittees || isLoadingContributions || isLoadingFilings;
 
-  // Computed mock data indicator
-  const usingMockData = donorUsingMock || recipientUsingMock || lobbyistUsingMock;
-
   return {
     // Profile data
     donorProfile,
@@ -300,11 +267,6 @@ export function usePoliticalData(): UsePoliticalDataReturn {
     committees,
     contributions,
     lobbyistFilings,
-
-    // Sample data fallbacks
-    sampleDonors: SAMPLE_DONORS,
-    sampleRecipients: SAMPLE_RECIPIENTS,
-    sampleLobbyists: SAMPLE_LOBBYISTS,
 
     // Loading states
     isLoading,
@@ -324,12 +286,6 @@ export function usePoliticalData(): UsePoliticalDataReturn {
 
     // API status
     apiStatus,
-
-    // Fallback indicators
-    usingMockData,
-    donorUsingMock,
-    recipientUsingMock,
-    lobbyistUsingMock,
 
     // Actions
     searchDonor,

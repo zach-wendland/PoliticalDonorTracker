@@ -25,12 +25,6 @@ import type {
   NonprofitSearchParams,
 } from '../types/political';
 
-import {
-  SAMPLE_DONORS,
-  SAMPLE_LOBBYISTS,
-  SAMPLE_RECIPIENTS,
-} from '../config/politicalFinanceSources';
-
 import { API_CONFIG, DEFAULT_CACHE_TTL } from '../config/api';
 
 // Resolved config type with required cacheTTL
@@ -342,15 +336,15 @@ export class PoliticalApiService implements IPoliticalApiService {
   // Aggregated Profile Methods (UI-Ready Data)
   // ============================================================================
 
-  async fetchDonorProfile(name: string): Promise<{ data: DonorProfile | null; source: 'api' | 'mock'; error?: string }> {
+  async fetchDonorProfile(name: string): Promise<{ data: DonorProfile | null; source: 'api'; error?: string }> {
     try {
       const contributions = await this.searchContributions({ contributor_name: name });
 
       if (contributions.results.length === 0) {
         return {
-          data: SAMPLE_DONORS[0] || null,
-          source: 'mock',
-          error: 'No contributions found for this donor. Showing sample data.',
+          data: null,
+          source: 'api',
+          error: 'No contributions found for this donor in FEC records.',
         };
       }
 
@@ -360,14 +354,14 @@ export class PoliticalApiService implements IPoliticalApiService {
     } catch (error) {
       console.error('Failed to fetch donor profile:', error);
       return {
-        data: SAMPLE_DONORS[0] || null,
-        source: 'mock',
+        data: null,
+        source: 'api',
         error: `API error: ${error instanceof Error ? error.message : 'Unknown error'}`,
       };
     }
   }
 
-  async fetchRecipientProfile(query: string): Promise<{ data: RecipientProfile | null; source: 'api' | 'mock'; error?: string }> {
+  async fetchRecipientProfile(query: string): Promise<{ data: RecipientProfile | null; source: 'api'; error?: string }> {
     try {
       // Try searching committees first
       const committees = await this.searchCommittees({ q: query });
@@ -388,29 +382,29 @@ export class PoliticalApiService implements IPoliticalApiService {
       }
 
       return {
-        data: SAMPLE_RECIPIENTS[0] || null,
-        source: 'mock',
-        error: 'No matching recipients found. Showing sample data.',
+        data: null,
+        source: 'api',
+        error: 'No matching recipients found in FEC records.',
       };
     } catch (error) {
       console.error('Failed to fetch recipient profile:', error);
       return {
-        data: SAMPLE_RECIPIENTS[0] || null,
-        source: 'mock',
+        data: null,
+        source: 'api',
         error: `API error: ${error instanceof Error ? error.message : 'Unknown error'}`,
       };
     }
   }
 
-  async fetchLobbyistProfile(name: string): Promise<{ data: LobbyistProfile | null; source: 'api' | 'mock'; error?: string }> {
+  async fetchLobbyistProfile(name: string): Promise<{ data: LobbyistProfile | null; source: 'api'; error?: string }> {
     try {
       const filings = await this.searchLobbyists({ registrant_name: name });
 
       if (filings.results.length === 0) {
         return {
-          data: SAMPLE_LOBBYISTS[0] || null,
-          source: 'mock',
-          error: 'No lobbying filings found. Showing sample data.',
+          data: null,
+          source: 'api',
+          error: 'No lobbying filings found in Senate LDA records.',
         };
       }
 
@@ -419,8 +413,8 @@ export class PoliticalApiService implements IPoliticalApiService {
     } catch (error) {
       console.error('Failed to fetch lobbyist profile:', error);
       return {
-        data: SAMPLE_LOBBYISTS[0] || null,
-        source: 'mock',
+        data: null,
+        source: 'api',
         error: `API error: ${error instanceof Error ? error.message : 'Unknown error'}`,
       };
     }

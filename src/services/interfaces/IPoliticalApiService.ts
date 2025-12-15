@@ -22,10 +22,10 @@ import type {
   NonprofitSearchParams,
 } from '../../types/political';
 
-// Profile fetch result with source indicator
+// Profile fetch result - always from API (no mock fallback)
 export interface ProfileFetchResult<T> {
   data: T | null;
-  source: 'api' | 'mock';
+  source: 'api';
   error?: string;
 }
 

@@ -16,36 +16,67 @@ interface ProxyConfig {
   parseResponse: (response: Response) => Promise<RSSResponse>;
 }
 
-// Simple XML parser for RSS feeds (used with CORS proxies)
+// XML parser for RSS feeds using browser-native DOMParser
+// More robust and secure than regex parsing
 function parseRSSXml(xmlText: string): RSSItem[] {
   const items: RSSItem[] = [];
 
-  // Extract items using regex (lightweight, no external deps)
-  const itemRegex = /<item[^>]*>([\s\S]*?)<\/item>/gi;
-  let match;
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xmlText, 'application/xml');
 
-  while ((match = itemRegex.exec(xmlText)) !== null) {
-    const itemXml = match[1];
+    // Check for parse errors
+    const parseError = doc.querySelector('parsererror');
+    if (parseError) {
+      console.warn('RSS XML parse error:', parseError.textContent);
+      return [];
+    }
 
-    const getTagContent = (tag: string): string | undefined => {
-      // Handle CDATA sections
-      const cdataRegex = new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>`, 'i');
-      const cdataMatch = cdataRegex.exec(itemXml);
-      if (cdataMatch) return cdataMatch[1].trim();
+    // Find all <item> elements (RSS 2.0) or <entry> elements (Atom)
+    const itemElements = doc.querySelectorAll('item, entry');
 
-      // Handle regular content
-      const regex = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i');
-      const tagMatch = regex.exec(itemXml);
-      return tagMatch ? tagMatch[1].trim() : undefined;
-    };
+    itemElements.forEach((itemEl) => {
+      // Helper to get text content from a child element
+      const getElementText = (tagNames: string[]): string | undefined => {
+        for (const tagName of tagNames) {
+          // Try with namespace prefix first, then without
+          let el = itemEl.querySelector(tagName);
+          if (!el) {
+            // Try getElementsByTagNameNS for namespaced elements
+            const parts = tagName.split(':');
+            if (parts.length === 2) {
+              const localName = parts[1];
+              const children = Array.from(itemEl.children);
+              el = children.find(child =>
+                child.localName === localName || child.tagName === tagName
+              ) || null;
+            }
+          }
+          if (el && el.textContent) {
+            return el.textContent.trim();
+          }
+        }
+        return undefined;
+      };
 
-    items.push({
-      title: getTagContent('title'),
-      link: getTagContent('link'),
-      pubDate: getTagContent('pubDate') || getTagContent('dc:date'),
-      description: getTagContent('description'),
-      content: getTagContent('content:encoded') || getTagContent('content'),
+      const title = getElementText(['title']);
+      const link = getElementText(['link', 'guid']) ||
+        itemEl.querySelector('link')?.getAttribute('href'); // Atom format
+      const pubDate = getElementText(['pubDate', 'dc:date', 'published', 'updated']);
+      const description = getElementText(['description', 'summary']);
+      const content = getElementText(['content:encoded', 'content', 'content:content']);
+
+      items.push({
+        title,
+        link: link || undefined,
+        pubDate,
+        description,
+        content,
+      });
     });
+  } catch (error) {
+    console.warn('RSS XML parsing failed:', error);
+    return [];
   }
 
   return items;

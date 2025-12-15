@@ -1,5 +1,5 @@
 // DonorsTab - Donor search and profile display
-import { Search, Wifi, WifiOff, Loader2, AlertCircle, FileText, CheckCircle2 } from 'lucide-react';
+import { Search, Wifi, WifiOff, Loader2, AlertCircle, CheckCircle2, DollarSign } from 'lucide-react';
 import { DonorCard } from '../cards';
 import { ALL_POLITICAL_SOURCES, type DonorProfile } from '../../config/politicalFinanceSources';
 
@@ -16,8 +16,6 @@ interface DonorsTabProps {
   isLoading: boolean;
   error: string | null;
   profile: DonorProfile | null;
-  sampleData: DonorProfile[];
-  usingMock: boolean;
 }
 
 export function DonorsTab({
@@ -28,15 +26,13 @@ export function DonorsTab({
   isLoading,
   error,
   profile,
-  sampleData,
-  usingMock,
 }: DonorsTabProps) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-xl font-bold text-white">Donor Profiles</h2>
-          <p className="text-sm text-slate-400">Track individual and organizational political contributions</p>
+          <p className="text-sm text-slate-400">Search FEC records for individual and organizational political contributions</p>
         </div>
         <div className="flex items-center gap-2">
           {/* API Status Indicator */}
@@ -60,7 +56,7 @@ export function DonorsTab({
         </div>
       </div>
 
-      {/* Status/Error Messages */}
+      {/* Error Messages */}
       {error && (
         <div className="bg-yellow-900/20 border border-yellow-800/50 rounded-lg p-4">
           <div className="flex items-center gap-2 text-sm text-yellow-400">
@@ -70,26 +66,25 @@ export function DonorsTab({
         </div>
       )}
 
-      {usingMock && !error && (
-        <div className="bg-slate-900/50 border border-slate-800 rounded-lg p-4">
-          <div className="flex items-center gap-2 text-sm text-slate-400">
-            <FileText className="h-4 w-4" />
-            <span>Showing sample data. Search for a donor name to fetch live FEC contribution data.</span>
-          </div>
-        </div>
-      )}
-
       {/* Donor Profile Result */}
-      {profile && !usingMock && (
+      {profile && (
         <div className="grid md:grid-cols-1 gap-6">
-          <DonorCard key={profile.id} donor={profile} />
+          <DonorCard donor={profile} />
         </div>
       )}
 
-      {/* Sample Data Display */}
-      {(usingMock || !profile) && (
-        <div className="grid md:grid-cols-2 gap-6">
-          {sampleData.map(d => <DonorCard key={d.id} donor={d} />)}
+      {/* Empty State - No Search Yet */}
+      {!profile && !error && !isLoading && (
+        <div className="bg-slate-900/30 border border-slate-800 rounded-lg p-8 text-center">
+          <DollarSign className="h-12 w-12 text-slate-600 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-slate-300 mb-2">Search FEC Donor Records</h3>
+          <p className="text-sm text-slate-500 max-w-md mx-auto">
+            Enter a donor name to search Federal Election Commission contribution records.
+            Data includes itemized contributions of $200 or more to federal campaigns and committees.
+          </p>
+          <div className="mt-4 text-xs text-slate-600">
+            Try searching: "Koch", "Soros", "Bloomberg", or any individual/organization name
+          </div>
         </div>
       )}
 

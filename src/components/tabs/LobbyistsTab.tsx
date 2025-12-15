@@ -1,5 +1,5 @@
 // LobbyistsTab - Lobbyist search and profile display
-import { Search, Wifi, WifiOff, Loader2, AlertCircle, FileText, CheckCircle2 } from 'lucide-react';
+import { Search, Wifi, WifiOff, Loader2, AlertCircle, CheckCircle2, UserCheck } from 'lucide-react';
 import { LobbyistCard } from '../cards';
 import { ALL_POLITICAL_SOURCES, type LobbyistProfile } from '../../config/politicalFinanceSources';
 
@@ -16,8 +16,6 @@ interface LobbyistsTabProps {
   isLoading: boolean;
   error: string | null;
   profile: LobbyistProfile | null;
-  sampleData: LobbyistProfile[];
-  usingMock: boolean;
 }
 
 export function LobbyistsTab({
@@ -28,15 +26,13 @@ export function LobbyistsTab({
   isLoading,
   error,
   profile,
-  sampleData,
-  usingMock,
 }: LobbyistsTabProps) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-xl font-bold text-white">Lobbyist Directory</h2>
-          <p className="text-sm text-slate-400">Senate LDA filings, clients, and lobbying activities</p>
+          <p className="text-sm text-slate-400">Search Senate LDA filings for registered lobbyists, clients, and activities</p>
         </div>
         <div className="flex items-center gap-2">
           {/* API Status Indicator */}
@@ -60,7 +56,7 @@ export function LobbyistsTab({
         </div>
       </div>
 
-      {/* Status/Error Messages */}
+      {/* Error Messages */}
       {error && (
         <div className="bg-yellow-900/20 border border-yellow-800/50 rounded-lg p-4">
           <div className="flex items-center gap-2 text-sm text-yellow-400">
@@ -70,26 +66,25 @@ export function LobbyistsTab({
         </div>
       )}
 
-      {usingMock && !error && (
-        <div className="bg-slate-900/50 border border-slate-800 rounded-lg p-4">
-          <div className="flex items-center gap-2 text-sm text-slate-400">
-            <FileText className="h-4 w-4" />
-            <span>Showing sample data. Search to fetch live Senate LDA lobbyist data.</span>
-          </div>
-        </div>
-      )}
-
       {/* Lobbyist Profile Result */}
-      {profile && !usingMock && (
+      {profile && (
         <div className="grid md:grid-cols-1 gap-6">
-          <LobbyistCard key={profile.id} lobbyist={profile} />
+          <LobbyistCard lobbyist={profile} />
         </div>
       )}
 
-      {/* Sample Data Display */}
-      {(usingMock || !profile) && (
-        <div className="grid md:grid-cols-2 gap-6">
-          {sampleData.map(l => <LobbyistCard key={l.id} lobbyist={l} />)}
+      {/* Empty State - No Search Yet */}
+      {!profile && !error && !isLoading && (
+        <div className="bg-slate-900/30 border border-slate-800 rounded-lg p-8 text-center">
+          <UserCheck className="h-12 w-12 text-slate-600 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-slate-300 mb-2">Search Senate LDA Lobbyist Records</h3>
+          <p className="text-sm text-slate-500 max-w-md mx-auto">
+            Enter a lobbyist firm name or registrant to search Senate Lobbying Disclosure Act filings.
+            Find lobbying activities, client lists, and government targets.
+          </p>
+          <div className="mt-4 text-xs text-slate-600">
+            Try searching: "Akin Gump", "Squire Patton", "K Street", or any lobbying firm name
+          </div>
         </div>
       )}
 

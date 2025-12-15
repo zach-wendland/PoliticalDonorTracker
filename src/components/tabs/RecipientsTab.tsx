@@ -1,5 +1,5 @@
 // RecipientsTab - Recipient search and profile display
-import { Search, Wifi, WifiOff, Loader2, AlertCircle, FileText, CheckCircle2 } from 'lucide-react';
+import { Search, Wifi, WifiOff, Loader2, AlertCircle, CheckCircle2, Users } from 'lucide-react';
 import { RecipientCard } from '../cards';
 import { ALL_POLITICAL_SOURCES, type RecipientProfile } from '../../config/politicalFinanceSources';
 
@@ -16,8 +16,6 @@ interface RecipientsTabProps {
   isLoading: boolean;
   error: string | null;
   profile: RecipientProfile | null;
-  sampleData: RecipientProfile[];
-  usingMock: boolean;
 }
 
 export function RecipientsTab({
@@ -28,15 +26,13 @@ export function RecipientsTab({
   isLoading,
   error,
   profile,
-  sampleData,
-  usingMock,
 }: RecipientsTabProps) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-xl font-bold text-white">Recipient Tracking</h2>
-          <p className="text-sm text-slate-400">Candidates, PACs, Super PACs, and political organizations</p>
+          <p className="text-sm text-slate-400">Search FEC records for candidates, PACs, Super PACs, and political committees</p>
         </div>
         <div className="flex items-center gap-2">
           {/* API Status Indicator */}
@@ -60,7 +56,7 @@ export function RecipientsTab({
         </div>
       </div>
 
-      {/* Status/Error Messages */}
+      {/* Error Messages */}
       {error && (
         <div className="bg-yellow-900/20 border border-yellow-800/50 rounded-lg p-4">
           <div className="flex items-center gap-2 text-sm text-yellow-400">
@@ -70,26 +66,25 @@ export function RecipientsTab({
         </div>
       )}
 
-      {usingMock && !error && (
-        <div className="bg-slate-900/50 border border-slate-800 rounded-lg p-4">
-          <div className="flex items-center gap-2 text-sm text-slate-400">
-            <FileText className="h-4 w-4" />
-            <span>Showing sample data. Search to fetch live FEC recipient data.</span>
-          </div>
-        </div>
-      )}
-
       {/* Recipient Profile Result */}
-      {profile && !usingMock && (
+      {profile && (
         <div className="grid md:grid-cols-1 gap-6">
-          <RecipientCard key={profile.id} recipient={profile} />
+          <RecipientCard recipient={profile} />
         </div>
       )}
 
-      {/* Sample Data Display */}
-      {(usingMock || !profile) && (
-        <div className="grid md:grid-cols-2 gap-6">
-          {sampleData.map(r => <RecipientCard key={r.id} recipient={r} />)}
+      {/* Empty State - No Search Yet */}
+      {!profile && !error && !isLoading && (
+        <div className="bg-slate-900/30 border border-slate-800 rounded-lg p-8 text-center">
+          <Users className="h-12 w-12 text-slate-600 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-slate-300 mb-2">Search FEC Recipient Records</h3>
+          <p className="text-sm text-slate-500 max-w-md mx-auto">
+            Enter a candidate name, committee name, or PAC to search Federal Election Commission records.
+            Find campaign committees, Super PACs, and political organizations.
+          </p>
+          <div className="mt-4 text-xs text-slate-600">
+            Try searching: "Biden", "Trump", "ActBlue", "WinRed", or any committee name
+          </div>
         </div>
       )}
 
