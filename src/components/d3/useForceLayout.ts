@@ -14,9 +14,12 @@ export interface SimulationNode extends NetworkNode {
   fy?: number | null;
 }
 
-export interface SimulationLink extends NetworkLink {
+export interface SimulationLink {
   source: SimulationNode | string;
   target: SimulationNode | string;
+  relationship: string;
+  startYear?: number;
+  amount?: number;
 }
 
 interface UseForceLayoutOptions {
@@ -58,14 +61,15 @@ export function useForceLayout(
 
   // Initialize simulation
   useEffect(() => {
+    // Early return for empty input - state will remain at initial []
     if (inputNodes.length === 0) {
-      setNodes([]);
-      setLinks([]);
+      simulationRef.current?.stop();
+      simulationRef.current = null;
       return;
     }
 
     // Create node copies with initial positions
-    const simNodes: SimulationNode[] = inputNodes.map((node, i) => ({
+    const simNodes: SimulationNode[] = inputNodes.map((node) => ({
       ...node,
       x: width / 2 + (Math.random() - 0.5) * 100,
       y: height / 2 + (Math.random() - 0.5) * 100,
