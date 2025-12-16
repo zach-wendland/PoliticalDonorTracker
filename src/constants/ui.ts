@@ -13,6 +13,7 @@ import {
   Database,
   BarChart3,
   Network,
+  Route,
 } from 'lucide-react';
 
 /**
@@ -49,7 +50,7 @@ export const CATEGORY_COLORS: Record<string, string> = {
 /**
  * Tab view identifier type
  */
-export type TabView = 'dashboard' | 'donors' | 'network';
+export type TabView = 'dashboard' | 'money-trail' | 'network';
 
 /**
  * Tab configuration interface
@@ -64,7 +65,7 @@ export interface TabConfig {
  * Application tab definitions for main navigation
  */
 export const TABS: TabConfig[] = [
-  { id: 'dashboard', label: 'Overview', icon: BarChart3 },
-  { id: 'donors', label: 'Donors', icon: DollarSign },
-  { id: 'network', label: 'Network', icon: Network },
+  { id: 'dashboard', label: 'Intel Overview', icon: BarChart3 },
+  { id: 'money-trail', label: 'Money Trail', icon: Route },
+  { id: 'network', label: 'Power Connections', icon: Network },
 ];

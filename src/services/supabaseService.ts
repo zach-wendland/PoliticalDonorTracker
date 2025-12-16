@@ -260,11 +260,11 @@ export class SupabaseService implements ISupabaseService {
   }
 
   // ============================================================================
-  // Network Graph Data (for D3.js)
+  // Network Graph Data (for D3.js) - Using network_nodes and network_edges tables
   // ============================================================================
 
   async getDonorMediaNetwork(): Promise<DonorMediaNetwork> {
-    if (!this.isConfigured()) {
+    if (!this.isConfigured() || !supabase) {
       return { nodes: [], links: [] };
     }
 
@@ -272,53 +272,80 @@ export class SupabaseService implements ISupabaseService {
     const cached = this.cache.get<DonorMediaNetwork>(cacheKey);
     if (cached) return cached;
 
-    // Fetch donors and media funding in parallel
-    const [donors, mediaFunding] = await Promise.all([
-      this.getDonors(),
-      this.getMediaFunding(),
+    // Fetch from new network tables in parallel
+    const [nodesResult, edgesResult] = await Promise.all([
+      supabase.from('network_nodes').select('*'),
+      supabase.from('network_edges').select('*'),
     ]);
 
-    // Build nodes
-    const donorNodes: NetworkNode[] = donors.map(d => ({
-      id: d.id,
-      name: d.name,
-      type: 'donor' as const,
-      netWorth: d.net_worth_billions || undefined,
-      donorType: d.donor_type,
+    if (nodesResult.error) {
+      console.error('Failed to fetch network nodes:', nodesResult.error);
+      return { nodes: [], links: [] };
+    }
+
+    if (edgesResult.error) {
+      console.error('Failed to fetch network edges:', edgesResult.error);
+      return { nodes: [], links: [] };
+    }
+
+    // Map database nodes to NetworkNode type
+    const nodes: NetworkNode[] = (nodesResult.data || []).map(n => ({
+      id: n.id,
+      name: n.name,
+      type: this.mapNodeType(n.node_type),
+      politicalLean: n.political_lean || undefined,
+      netWorth: n.net_worth_billions || undefined,
+      totalContributions: n.total_contributions || undefined,
+      country: n.country || undefined,
+      state: n.state || undefined,
+      party: n.party || undefined,
+      chamber: n.chamber || undefined,
+      ein: n.ein || undefined,
+      fecId: n.fec_id || undefined,
+      website: n.website || undefined,
+      boardMembers: n.board_members || undefined,
+      description: n.description || undefined,
+      riskIndicators: n.risk_indicators || undefined,
     }));
 
-    // Get unique media outlets
-    const mediaOutlets = new Map<string, NetworkNode>();
-    mediaFunding.forEach(mf => {
-      if (!mediaOutlets.has(mf.outlet_name)) {
-        mediaOutlets.set(mf.outlet_name, {
-          id: `media_${mf.outlet_name.toLowerCase().replace(/\s+/g, '_')}`,
-          name: mf.outlet_name,
-          type: 'media' as const,
-          outletType: mf.outlet_type,
-          domain: mf.outlet_domain || undefined,
-        });
-      }
-    });
-
-    const mediaNodes = Array.from(mediaOutlets.values());
-
-    // Build links
-    const links: NetworkLink[] = mediaFunding.map(mf => ({
-      source: mf.donor_id,
-      target: `media_${mf.outlet_name.toLowerCase().replace(/\s+/g, '_')}`,
-      relationship: mf.relationship_type,
-      startYear: mf.start_year || undefined,
-      amount: mf.estimated_amount || undefined,
+    // Map database edges to NetworkLink type
+    const links: NetworkLink[] = (edgesResult.data || []).map(e => ({
+      source: e.source_id,
+      target: e.target_id,
+      relationship: e.relationship,
+      amount: e.amount || undefined,
+      startYear: e.start_year || undefined,
+      endYear: e.end_year || undefined,
+      isActive: e.is_active,
+      confidence: e.confidence || undefined,
+      isDisclosed: e.is_disclosed,
+      grantPurpose: e.grant_purpose || undefined,
+      intermediaries: e.intermediaries || undefined,
+      sourceDocuments: e.source_documents || undefined,
     }));
 
-    const network: DonorMediaNetwork = {
-      nodes: [...donorNodes, ...mediaNodes],
-      links,
-    };
+    const network: DonorMediaNetwork = { nodes, links };
 
     this.cache.set(cacheKey, network, this.cacheTTL.network);
     return network;
+  }
+
+  // Map database node_type to frontend NodeType
+  private mapNodeType(dbType: string): NetworkNode['type'] {
+    const typeMap: Record<string, NetworkNode['type']> = {
+      'foreign_nation': 'donor',
+      'donor': 'donor',
+      'foundation': 'foundation',
+      'pac': 'pac',
+      'super_pac': 'pac',
+      'lobbyist': 'foundation',
+      'lobbying_firm': 'foundation',
+      'politician': 'politician',
+      'media': 'media',
+      'shell_org': 'shell_org',
+      'think_tank': 'foundation',
+    };
+    return typeMap[dbType] || 'donor';
   }
 
   // ============================================================================

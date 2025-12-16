@@ -138,13 +138,31 @@ export interface KeyFigure {
 export interface NetworkNode {
   id: string;
   name: string;
-  type: 'donor' | 'media';
+  type: 'donor' | 'media' | 'foundation' | 'pac' | 'shell_org' | 'politician';
   // Donor-specific
   netWorth?: number;
   donorType?: string;
+  totalContributions?: number;
   // Media-specific
   outletType?: string;
   domain?: string;
+  // Organization-specific
+  orgType?: string;
+  ein?: string;
+  fecId?: string;
+  website?: string;
+  // Location
+  country?: string;
+  state?: string;
+  // Political info
+  party?: string;
+  chamber?: string;
+  politicalLean?: 'left' | 'right' | 'neutral' | 'bipartisan' | 'unknown';
+  // Metadata for tooltips
+  description?: string;
+  totalFunding?: number;
+  boardMembers?: string[];
+  riskIndicators?: unknown[];
 }
 
 export interface NetworkLink {
@@ -152,10 +170,42 @@ export interface NetworkLink {
   target: string;
   relationship: string;
   startYear?: number;
+  endYear?: number;
   amount?: number;
+  // Extended link data for Money Trail Explorer
+  intermediaries?: string[]; // IDs of shell orgs in between
+  sourceDocuments?: SourceCitation[];
+  grantPurpose?: string;
+  isActive?: boolean;
+  isDisclosed?: boolean;
+  confidence?: 'high' | 'medium' | 'low';
 }
 
 export interface DonorMediaNetwork {
   nodes: NetworkNode[];
   links: NetworkLink[];
+}
+
+// Money Trail Explorer Types
+export interface MoneyPath {
+  nodes: NetworkNode[];
+  links: NetworkLink[];
+  totalAmount: number;
+  hopCount: number;
+}
+
+export interface ConnectionDetail {
+  link: NetworkLink;
+  sourceNode: NetworkNode;
+  targetNode: NetworkNode;
+  intermediaryOrgs?: NetworkNode[];
+  downstreamRecipients?: { name: string; percentage: number }[];
+  sharedBoardMembers?: string[];
+}
+
+export interface PathFinderOptions {
+  maxHops: number;
+  includeIntermediaries: boolean;
+  filterByRelationship?: string[];
+  filterByNodeType?: NetworkNode['type'][];
 }
