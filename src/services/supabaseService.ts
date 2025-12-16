@@ -2,7 +2,7 @@
 // Provides enriched donor, PAC, and media funding data
 
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { feedCache } from './feedCache';
+import { appCache } from './cache';
 import type { ICache, ISupabaseService } from './interfaces';
 import type {
   SupabaseDonor,
@@ -30,7 +30,7 @@ export class SupabaseService implements ISupabaseService {
   private cache: ICache;
   private cacheTTL: typeof CACHE_TTL;
 
-  constructor(cache: ICache = feedCache, cacheTTL: Partial<typeof CACHE_TTL> = {}) {
+  constructor(cache: ICache = appCache, cacheTTL: Partial<typeof CACHE_TTL> = {}) {
     this.cache = cache;
     this.cacheTTL = { ...CACHE_TTL, ...cacheTTL };
   }
@@ -395,7 +395,7 @@ export class SupabaseService implements ISupabaseService {
  * const service = createSupabaseService(mockCache);
  */
 export function createSupabaseService(
-  cache: ICache = feedCache,
+  cache: ICache = appCache,
   cacheTTL: Partial<typeof CACHE_TTL> = {}
 ): ISupabaseService {
   return new SupabaseService(cache, cacheTTL);

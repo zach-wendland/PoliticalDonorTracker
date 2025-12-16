@@ -12,9 +12,7 @@ import {
   Scale,
   Database,
   BarChart3,
-  Users,
   Network,
-  Rss,
 } from 'lucide-react';
 
 /**
@@ -51,7 +49,7 @@ export const CATEGORY_COLORS: Record<string, string> = {
 /**
  * Tab view identifier type
  */
-export type TabView = 'dashboard' | 'donors' | 'recipients' | 'lobbyists' | 'network' | 'sources' | 'feed';
+export type TabView = 'dashboard' | 'donors' | 'network';
 
 /**
  * Tab configuration interface
@@ -68,9 +66,5 @@ export interface TabConfig {
 export const TABS: TabConfig[] = [
   { id: 'dashboard', label: 'Overview', icon: BarChart3 },
   { id: 'donors', label: 'Donors', icon: DollarSign },
-  { id: 'recipients', label: 'Recipients', icon: Users },
-  { id: 'lobbyists', label: 'Lobbyists', icon: UserCheck },
   { id: 'network', label: 'Network', icon: Network },
-  { id: 'sources', label: 'Data Sources', icon: Database },
-  { id: 'feed', label: 'Live Feed', icon: Rss },
 ];

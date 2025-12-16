@@ -1,65 +1,36 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Activity,
   CheckCircle2,
-  Rss,
   Key,
 } from 'lucide-react';
 import {
   ALL_POLITICAL_SOURCES,
   POLITICAL_SOURCE_CATEGORIES,
-  POLITICAL_LIVE_FEEDS,
   SOURCE_STATS,
-  type SourceCategory
 } from '../config/politicalFinanceSources';
-import { feedService, type FeedItem } from '../services/feedService';
 import { usePoliticalData } from '../hooks/usePoliticalData';
 import { useSupabaseData } from '../hooks/useSupabaseData';
 import {
   DashboardTab,
   DonorsTab,
-  RecipientsTab,
-  LobbyistsTab,
   NetworkTab,
-  SourcesTab,
-  FeedTab
 } from './tabs';
 import { TABS, type TabView } from '../constants/ui';
 
 export default function PoliticalDonorTracker() {
   const [activeTab, setActiveTab] = useState<TabView>('dashboard');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<SourceCategory | 'all'>('all');
-  const [expandedSource, setExpandedSource] = useState<string | null>(null);
-  const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
-  const [feedLoading, setFeedLoading] = useState(false);
-  const [feedError, setFeedError] = useState<string | null>(null);
 
-  // Search inputs for API tabs
+  // Search input for Donors tab
   const [donorSearchInput, setDonorSearchInput] = useState('');
-  const [recipientSearchInput, setRecipientSearchInput] = useState('');
-  const [lobbyistSearchInput, setLobbyistSearchInput] = useState('');
 
   // Political data hook
   const {
-    // Profile data
     donorProfile,
-    recipientProfile,
-    lobbyistProfile,
-    // Loading states
     isLoadingDonor,
-    isLoadingRecipient,
-    isLoadingLobbyist,
-    // Error states
     donorError,
-    recipientError,
-    lobbyistError,
-    // API status
     apiStatus,
-    // Actions
     searchDonor,
-    searchRecipient,
-    searchLobbyist,
   } = usePoliticalData();
 
   // Supabase enriched data hook
@@ -69,17 +40,6 @@ export default function PoliticalDonorTracker() {
     isConfigured: isSupabaseConfigured,
     fetchDonorMediaNetwork,
   } = useSupabaseData();
-
-  // Memoized filtered sources
-  const filteredSources = useMemo(() => {
-    return ALL_POLITICAL_SOURCES.filter(source => {
-      const matchesSearch = searchQuery === '' ||
-        source.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        source.description.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory = selectedCategory === 'all' || source.category === selectedCategory;
-      return matchesSearch && matchesCategory;
-    });
-  }, [searchQuery, selectedCategory]);
 
   // Category distribution for pie chart
   const categoryDistribution = useMemo(() => {
@@ -105,40 +65,6 @@ export default function PoliticalDonorTracker() {
       .sort((a, b) => b.count - a.count)
       .slice(0, 8);
   }, []);
-
-  // Fetch RSS feeds
-  const fetchFeeds = useCallback(async () => {
-    setFeedLoading(true);
-    setFeedError(null);
-    try {
-      const feedSources = POLITICAL_LIVE_FEEDS.map(source => ({
-        id: source.id,
-        name: source.name,
-        url: source.url,
-        category: source.category,
-        topic_map: source.description
-      }));
-      const result = await feedService.fetchFeeds(feedSources);
-      setFeedItems(result.items);
-
-      // Check for errors
-      const errorCount = Object.keys(result.errors).length;
-      if (errorCount > 0) {
-        setFeedError(`${errorCount} feed(s) failed to load. Some sources may be unavailable.`);
-      }
-    } catch (err) {
-      setFeedError('Failed to fetch feeds. Please try again.');
-      console.error('Feed fetch error:', err);
-    } finally {
-      setFeedLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (activeTab === 'feed' && feedItems.length === 0) {
-      fetchFeeds();
-    }
-  }, [activeTab, feedItems.length, fetchFeeds]);
 
 
   return (
@@ -197,10 +123,6 @@ export default function PoliticalDonorTracker() {
         {/* Dashboard Overview Tab */}
         {activeTab === 'dashboard' && (
           <DashboardTab
-            onNavigateToSources={(category) => {
-              setSelectedCategory(category);
-              setActiveTab('sources');
-            }}
             categoryDistribution={categoryDistribution}
             dataTypeDistribution={dataTypeDistribution}
           />
@@ -219,32 +141,6 @@ export default function PoliticalDonorTracker() {
           />
         )}
 
-        {/* Recipients Tab */}
-        {activeTab === 'recipients' && (
-          <RecipientsTab
-            apiStatus={apiStatus.openfec}
-            searchInput={recipientSearchInput}
-            onSearchInputChange={setRecipientSearchInput}
-            onSearch={searchRecipient}
-            isLoading={isLoadingRecipient}
-            error={recipientError}
-            profile={recipientProfile}
-          />
-        )}
-
-        {/* Lobbyists Tab */}
-        {activeTab === 'lobbyists' && (
-          <LobbyistsTab
-            apiStatus={apiStatus.senateLDA}
-            searchInput={lobbyistSearchInput}
-            onSearchInputChange={setLobbyistSearchInput}
-            onSearch={searchLobbyist}
-            isLoading={isLoadingLobbyist}
-            error={lobbyistError}
-            profile={lobbyistProfile}
-          />
-        )}
-
         {/* Network Tab */}
         {activeTab === 'network' && (
           <NetworkTab
@@ -255,28 +151,6 @@ export default function PoliticalDonorTracker() {
           />
         )}
 
-        {/* Sources Tab */}
-        {activeTab === 'sources' && (
-          <SourcesTab
-            searchQuery={searchQuery}
-            onSearchQueryChange={setSearchQuery}
-            selectedCategory={selectedCategory}
-            onCategoryChange={setSelectedCategory}
-            filteredSources={filteredSources}
-            expandedSource={expandedSource}
-            onExpandedSourceChange={setExpandedSource}
-          />
-        )}
-
-        {/* Live Feed Tab */}
-        {activeTab === 'feed' && (
-          <FeedTab
-            items={feedItems}
-            isLoading={feedLoading}
-            error={feedError}
-            onRefresh={fetchFeeds}
-          />
-        )}
       </main>
 
       {/* Footer */}
@@ -295,10 +169,6 @@ export default function PoliticalDonorTracker() {
               <span className="flex items-center gap-1">
                 <CheckCircle2 className="h-3 w-3 text-green-500" />
                 {SOURCE_STATS.totalSources} sources
-              </span>
-              <span className="flex items-center gap-1">
-                <Rss className="h-3 w-3 text-orange-500" />
-                {SOURCE_STATS.rssFeedsCount} RSS feeds
               </span>
               <span className="flex items-center gap-1">
                 <Key className="h-3 w-3 text-blue-500" />

@@ -12,10 +12,3 @@ export type {
   PartyContribution,
   StateContribution,
 } from './ISupabaseService';
-export type {
-  IFeedService,
-  FeedResult,
-  ProxyConfig,
-  RSSItem,
-  RSSResponse,
-} from './IFeedService';

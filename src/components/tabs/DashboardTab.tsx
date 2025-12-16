@@ -26,18 +26,15 @@ import {
   ALL_POLITICAL_SOURCES,
   POLITICAL_SOURCE_CATEGORIES,
   SOURCE_STATS,
-  type SourceCategory
 } from '../../config/politicalFinanceSources';
 import { ICON_MAP, CATEGORY_COLORS } from '../../constants/ui';
 
 interface DashboardTabProps {
-  onNavigateToSources: (category: SourceCategory) => void;
   categoryDistribution: Array<{ name: string; value: number }>;
   dataTypeDistribution: Array<{ name: string; count: number }>;
 }
 
 export function DashboardTab({
-  onNavigateToSources,
   categoryDistribution,
   dataTypeDistribution,
 }: DashboardTabProps) {
@@ -163,10 +160,9 @@ export function DashboardTab({
             const IconComponent = ICON_MAP[config.icon] || Database;
             const count = ALL_POLITICAL_SOURCES.filter(s => s.category === key).length;
             return (
-              <button
+              <div
                 key={key}
-                onClick={() => onNavigateToSources(key as SourceCategory)}
-                className="bg-slate-900/50 border border-slate-800 rounded-lg p-4 hover:border-slate-700 transition-all text-left"
+                className="bg-slate-900/50 border border-slate-800 rounded-lg p-4"
               >
                 <div className={`p-2 rounded-lg bg-slate-800 ${config.color} inline-block mb-2`}>
                   <IconComponent className="h-5 w-5" />
@@ -174,7 +170,7 @@ export function DashboardTab({
                 <h4 className="font-semibold text-white text-sm mb-1">{config.label}</h4>
                 <p className="text-xs text-slate-500 mb-2 line-clamp-2">{config.description}</p>
                 <p className="text-lg font-bold text-emerald-400">{count} sources</p>
-              </button>
+              </div>
             );
           })}
         </div>

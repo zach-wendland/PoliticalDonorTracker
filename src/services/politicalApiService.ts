@@ -1,7 +1,7 @@
 // Political Finance API Service
 // Handles OpenFEC, Senate LDA, and ProPublica Nonprofit APIs
 
-import { feedCache } from './feedCache';
+import { appCache } from './cache';
 import type { ICache, IPoliticalApiService, PoliticalApiConfig } from './interfaces';
 import type {
   FECCandidate,
@@ -43,7 +43,7 @@ export class PoliticalApiService implements IPoliticalApiService {
   private requestCache: Map<string, Promise<unknown>> = new Map();
   private rateLimitCalls: Map<string, number[]> = new Map();
 
-  constructor(cache: ICache = feedCache, config: PoliticalApiConfig = {}) {
+  constructor(cache: ICache = appCache, config: PoliticalApiConfig = {}) {
     this.cache = cache;
     this.config = {
       openfecApiKey: config.openfecApiKey,
@@ -604,7 +604,7 @@ export class PoliticalApiService implements IPoliticalApiService {
  * const service = createPoliticalApiService(mockCache, { openfecApiKey: 'TEST_KEY' });
  */
 export function createPoliticalApiService(
-  cache: ICache = feedCache,
+  cache: ICache = appCache,
   config: PoliticalApiConfig = {}
 ): IPoliticalApiService {
   return new PoliticalApiService(cache, config);
