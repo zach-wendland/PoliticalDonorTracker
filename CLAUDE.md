@@ -27,9 +27,12 @@ npm test -- -t "cache expiration"            # Run tests matching pattern
 ### Component Structure
 
 - **Entry**: `src/main.tsx` → `src/App.tsx` → `src/components/PoliticalDonorTracker.tsx`
-- **Tab Components** (`src/components/tabs/`): DashboardTab, DonorsTab, NetworkTab, MoneyTrailExplorer
+- **Single-Page Layout**: App uses continuous scroll layout with network visualization as hero section
+- **Network Views** (toggled via buttons): MoneyTrailExplorer (interactive path tracing), DonorMediaNetwork (force-directed graph), TimeSeriesAnimation (temporal visualization)
+- **Tab Components** (`src/components/tabs/`): DashboardTab, DonorsTab, NetworkTab, MoneyTrailExplorer - Used for content sections in single-page layout
 - **Card Components** (`src/components/cards/`): DonorCard, RecipientCard, LobbyistCard, SourceCard
 - **D3 Visualizations** (`src/components/d3/`): DonorMediaNetwork, useForceLayout
+- **Time-Series** (`src/components/TimeSeriesAnimation.tsx`): Temporal network animation with particle system
 - **Error Handling**: ErrorBoundary component with HOC wrapper
 
 ### Service Layer
@@ -54,6 +57,8 @@ Factory functions create service instances that are injected via `ServicesContex
 ### D3 + React Integration
 
 D3 handles physics/layout calculations, React handles DOM rendering. The simulation runs in useEffect with `useRef` for positions during active simulation, `useState` only when simulation settles (alpha < 0.1).
+
+**Performance Optimization**: `useForceLayout` uses requestAnimationFrame and throttled state updates (~30fps) to prevent excessive re-renders during D3 force simulation. State updates only fire when simulation alpha drops below 0.01.
 
 ### Data Flow for Network Visualization
 
