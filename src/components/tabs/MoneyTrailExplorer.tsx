@@ -60,7 +60,7 @@ export function MoneyTrailExplorer({
   // State
   const [startEntity, setStartEntity] = useState<string | null>(null);
   const [endEntity, setEndEntity] = useState<string | null>(null);
-  const [maxHops, setMaxHops] = useState(3);
+  const [maxHops, setMaxHops] = useState(1);
   const [includeIntermediaries, setIncludeIntermediaries] = useState(true);
   const [filterRelationships, setFilterRelationships] = useState<string[]>([]);
   const [filterNodeTypes, setFilterNodeTypes] = useState<NetworkNode['type'][]>([]);

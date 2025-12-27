@@ -38,10 +38,11 @@ import {
 import { useSupabaseData } from '../hooks/useSupabaseData';
 import { DonorMediaNetwork } from './d3';
 import { MoneyTrailExplorer } from './tabs';
+import { TimeSeriesAnimation } from './TimeSeriesAnimation';
 import { ICON_MAP, CATEGORY_COLORS } from '../constants/ui';
 
 export default function PoliticalDonorTracker() {
-  const [activeNetworkView, setActiveNetworkView] = useState<'standard' | 'trail'>('trail');
+  const [activeNetworkView, setActiveNetworkView] = useState<'standard' | 'trail' | 'timeseries'>('trail');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
@@ -260,6 +261,16 @@ export default function PoliticalDonorTracker() {
               >
                 Network Graph
               </button>
+              <button
+                onClick={() => setActiveNetworkView('timeseries')}
+                className={`px-4 py-2 text-sm font-medium rounded transition-colors ${
+                  activeNetworkView === 'timeseries'
+                    ? 'bg-cyan-600 text-white'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Time-Series Animation
+              </button>
             </div>
           </div>
 
@@ -271,6 +282,11 @@ export default function PoliticalDonorTracker() {
                 isLoading={isLoadingNetwork}
                 networkData={filteredNetwork}
                 onRefresh={fetchDonorMediaNetwork}
+              />
+            ) : activeNetworkView === 'timeseries' ? (
+              <TimeSeriesAnimation
+                networkData={donorMediaNetwork}
+                isLoading={isLoadingNetwork}
               />
             ) : (
               filteredNetwork && filteredNetwork.nodes.length > 0 ? (
