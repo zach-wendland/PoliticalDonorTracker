@@ -27,12 +27,16 @@ npm test -- -t "cache expiration"            # Run tests matching pattern
 ### Component Structure
 
 - **Entry**: `src/main.tsx` → `src/App.tsx` → `src/components/PoliticalDonorTracker.tsx`
-- **Single-Page Layout**: App uses continuous scroll layout with network visualization as hero section
-- **Network Views** (toggled via buttons): MoneyTrailExplorer (interactive path tracing), DonorMediaNetwork (force-directed graph), TimeSeriesAnimation (temporal visualization)
-- **Tab Components** (`src/components/tabs/`): DashboardTab, DonorsTab, NetworkTab, MoneyTrailExplorer - Used for content sections in single-page layout
+- **Single-Page Layout**: App uses continuous scroll layout with network visualization as hero section. No tabs - all content flows vertically.
+- **Network Views** (toggled via buttons in Network Intelligence section):
+  - MoneyTrailExplorer (default, interactive path tracing)
+  - DonorMediaNetwork (classic D3 force-directed graph)
+  - TimeSeriesAnimation (temporal visualization with particle system)
+- **Content Sections** (top to bottom): Network Intelligence (hero) → Data Sources Overview (stats) → Data Distribution Analytics (charts) → Data Source Categories (grid)
+- **Tab Components** (`src/components/tabs/`): DashboardTab content now embedded in main page, NetworkTab deprecated, MoneyTrailExplorer used as network view option
 - **Card Components** (`src/components/cards/`): DonorCard, RecipientCard, LobbyistCard, SourceCard
 - **D3 Visualizations** (`src/components/d3/`): DonorMediaNetwork, useForceLayout
-- **Time-Series** (`src/components/TimeSeriesAnimation.tsx`): Temporal network animation with particle system
+- **Time-Series** (`src/components/TimeSeriesAnimation.tsx`): Temporal network animation with particle system and political events timeline
 - **Error Handling**: ErrorBoundary component with HOC wrapper
 
 ### Service Layer
@@ -58,7 +62,11 @@ Factory functions create service instances that are injected via `ServicesContex
 
 D3 handles physics/layout calculations, React handles DOM rendering. The simulation runs in useEffect with `useRef` for positions during active simulation, `useState` only when simulation settles (alpha < 0.1).
 
-**Performance Optimization**: `useForceLayout` uses requestAnimationFrame and throttled state updates (~30fps) to prevent excessive re-renders during D3 force simulation. State updates only fire when simulation alpha drops below 0.01.
+**Performance Optimization**:
+- `useForceLayout` uses requestAnimationFrame and throttled state updates (~30fps) to prevent excessive re-renders during D3 force simulation
+- State updates only fire when simulation alpha drops below 0.01
+- TimeSeriesAnimation uses particle pooling and requestAnimationFrame for smooth 60fps animation
+- SVG filters (blur, glow) applied sparingly to avoid rendering bottlenecks
 
 ### Data Flow for Network Visualization
 
@@ -144,5 +152,19 @@ Integration tests require `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` envir
 
 ## Deployment
 
+```bash
+vercel --prod              # Deploy to production
+vercel --prod --archive=tgz # Deploy with compressed archive (avoids rate limits)
+```
+
 Deployed on Vercel: https://political-donor-tracker.vercel.app
 GitHub: https://github.com/zach-wendland/PoliticalDonorTracker
+
+**Note**: Vercel free tier has API upload limits (5000 files). If deployment fails with rate limit error, use `--archive=tgz` flag to reduce upload count.
+
+## Documentation Files
+
+- **QUICK_START.md** - Getting started guide for new developers
+- **REFACTOR_SUMMARY.md** - Complete changelog of single-page refactor
+- **SINGLE_PAGE_ARCHITECTURE.md** - Architecture deep-dive with future enhancement roadmap
+- **SUPABASE_ENHANCEMENTS.md** - Proposed database schema expansions (10 new tables)
