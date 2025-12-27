@@ -2,8 +2,7 @@
 // Provides enriched donor, PAC, and media funding data
 
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { appCache } from './cache';
-import type { ICache, ISupabaseService } from './interfaces';
+import { appCache, SimpleCache } from './cache';
 import type {
   SupabaseDonor,
   MediaFunding,
@@ -25,21 +24,60 @@ const CACHE_TTL = {
   network: 30,
 };
 
+export interface ISupabaseService {
+  // Configuration
+  isConfigured(): boolean;
+
+  // Donor Queries
+  getDonors(): Promise<SupabaseDonor[]>;
+  getDonorById(id: string): Promise<SupabaseDonor | null>;
+  searchDonorsByName(name: string): Promise<SupabaseDonor[]>;
+
+  // Media Funding Queries
+  getMediaFunding(): Promise<MediaFunding[]>;
+  getMediaFundingByDonor(donorId: string): Promise<MediaFunding[]>;
+
+  // PAC Contribution Queries
+  getPacContributions(): Promise<PacContribution[]>;
+  getPacContributionDetails(): Promise<PacContributionDetail[]>;
+  getPacContributionsByRecipient(recipientName: string): Promise<PacContributionDetail[]>;
+
+  // Political Recipient Queries
+  getPoliticalRecipients(): Promise<PoliticalRecipient[]>;
+
+  // Organization Queries
+  getOrganizations(): Promise<Organization[]>;
+
+  // Network Graph Data (for D3.js)
+  getDonorMediaNetwork(): Promise<DonorMediaNetwork>;
+
+  // Aggregation Queries
+  getContributionsByParty(): Promise<PartyContribution[]>;
+  getContributionsByState(): Promise<StateContribution[]>;
+
+  // Cache Management
+  clearCache(): void;
+}
+
+export interface PartyContribution {
+  party: string;
+  total: number;
+  count: number;
+}
+
+export interface StateContribution {
+  state: string;
+  total: number;
+  count: number;
+}
+
 export class SupabaseService implements ISupabaseService {
-  private static instance: SupabaseService;
-  private cache: ICache;
+  private cache: SimpleCache;
   private cacheTTL: typeof CACHE_TTL;
 
-  constructor(cache: ICache = appCache, cacheTTL: Partial<typeof CACHE_TTL> = {}) {
+  constructor(cache: SimpleCache = appCache, cacheTTL: Partial<typeof CACHE_TTL> = {}) {
     this.cache = cache;
     this.cacheTTL = { ...CACHE_TTL, ...cacheTTL };
-  }
-
-  static getInstance(): SupabaseService {
-    if (!SupabaseService.instance) {
-      SupabaseService.instance = new SupabaseService();
-    }
-    return SupabaseService.instance;
   }
 
   isConfigured(): boolean {
@@ -51,7 +89,7 @@ export class SupabaseService implements ISupabaseService {
   // ============================================================================
 
   async getDonors(): Promise<SupabaseDonor[]> {
-    if (!this.isConfigured() || !supabase) return [];
+    if (!supabase) return [];
 
     const cacheKey = 'supabase_donors_all';
     const cached = this.cache.get<SupabaseDonor[]>(cacheKey);
@@ -72,7 +110,7 @@ export class SupabaseService implements ISupabaseService {
   }
 
   async getDonorById(id: string): Promise<SupabaseDonor | null> {
-    if (!this.isConfigured() || !supabase) return null;
+    if (!supabase) return null;
 
     const cacheKey = `supabase_donor_${id}`;
     const cached = this.cache.get<SupabaseDonor>(cacheKey);
@@ -94,7 +132,7 @@ export class SupabaseService implements ISupabaseService {
   }
 
   async searchDonorsByName(name: string): Promise<SupabaseDonor[]> {
-    if (!this.isConfigured() || !supabase) return [];
+    if (!supabase) return [];
 
     const { data, error } = await supabase
       .from('donors')
@@ -115,7 +153,7 @@ export class SupabaseService implements ISupabaseService {
   // ============================================================================
 
   async getMediaFunding(): Promise<MediaFunding[]> {
-    if (!this.isConfigured() || !supabase) return [];
+    if (!supabase) return [];
 
     const cacheKey = 'supabase_media_funding_all';
     const cached = this.cache.get<MediaFunding[]>(cacheKey);
@@ -136,7 +174,7 @@ export class SupabaseService implements ISupabaseService {
   }
 
   async getMediaFundingByDonor(donorId: string): Promise<MediaFunding[]> {
-    if (!this.isConfigured() || !supabase) return [];
+    if (!supabase) return [];
 
     const { data, error } = await supabase
       .from('media_funding')
@@ -156,7 +194,7 @@ export class SupabaseService implements ISupabaseService {
   // ============================================================================
 
   async getPacContributions(): Promise<PacContribution[]> {
-    if (!this.isConfigured() || !supabase) return [];
+    if (!supabase) return [];
 
     const cacheKey = 'supabase_pac_contributions_all';
     const cached = this.cache.get<PacContribution[]>(cacheKey);
@@ -177,7 +215,7 @@ export class SupabaseService implements ISupabaseService {
   }
 
   async getPacContributionDetails(): Promise<PacContributionDetail[]> {
-    if (!this.isConfigured() || !supabase) return [];
+    if (!supabase) return [];
 
     const cacheKey = 'supabase_pac_details_all';
     const cached = this.cache.get<PacContributionDetail[]>(cacheKey);
@@ -198,7 +236,7 @@ export class SupabaseService implements ISupabaseService {
   }
 
   async getPacContributionsByRecipient(recipientName: string): Promise<PacContributionDetail[]> {
-    if (!this.isConfigured() || !supabase) return [];
+    if (!supabase) return [];
 
     const { data, error } = await supabase
       .from('pac_contributions_detail')
@@ -219,7 +257,7 @@ export class SupabaseService implements ISupabaseService {
   // ============================================================================
 
   async getPoliticalRecipients(): Promise<PoliticalRecipient[]> {
-    if (!this.isConfigured() || !supabase) return [];
+    if (!supabase) return [];
 
     const cacheKey = 'supabase_recipients_all';
     const cached = this.cache.get<PoliticalRecipient[]>(cacheKey);
@@ -244,7 +282,7 @@ export class SupabaseService implements ISupabaseService {
   // ============================================================================
 
   async getOrganizations(): Promise<Organization[]> {
-    if (!this.isConfigured() || !supabase) return [];
+    if (!supabase) return [];
 
     const { data, error } = await supabase
       .from('organizations')
@@ -264,7 +302,7 @@ export class SupabaseService implements ISupabaseService {
   // ============================================================================
 
   async getDonorMediaNetwork(): Promise<DonorMediaNetwork> {
-    if (!this.isConfigured() || !supabase) {
+    if (!supabase) {
       return { nodes: [], links: [] };
     }
 
@@ -408,25 +446,13 @@ export class SupabaseService implements ISupabaseService {
   }
 }
 
-/**
- * Factory function for creating SupabaseService instances
- * Use this for dependency injection in tests
- *
- * @param cache - Cache implementation (defaults to feedCache singleton)
- * @param cacheTTL - Cache TTL overrides
- * @returns New SupabaseService instance
- *
- * @example
- * // In tests:
- * const mockCache = { get: vi.fn(), set: vi.fn(), delete: vi.fn(), ... };
- * const service = createSupabaseService(mockCache);
- */
+// Factory for tests - accepts mock cache and TTL overrides
 export function createSupabaseService(
-  cache: ICache = appCache,
+  cache: SimpleCache = appCache,
   cacheTTL: Partial<typeof CACHE_TTL> = {}
 ): ISupabaseService {
   return new SupabaseService(cache, cacheTTL);
 }
 
 // Export singleton instance for app use
-export const supabaseService = SupabaseService.getInstance();
+export const supabaseService = new SupabaseService();

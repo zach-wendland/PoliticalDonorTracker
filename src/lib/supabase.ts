@@ -3,47 +3,13 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Environment validation
-interface EnvironmentValidation {
-  valid: boolean;
-  missing: string[];
-  warnings: string[];
-}
-
-export function validateEnvironment(): EnvironmentValidation {
-  const required: string[] = [];
-  const optional = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY'];
-
-  const missing: string[] = [];
-  const warnings: string[] = [];
-
-  // Check required vars
-  for (const key of required) {
-    if (!import.meta.env[key]) {
-      missing.push(key);
-    }
-  }
-
-  // Check optional vars and warn if missing
-  for (const key of optional) {
-    if (!import.meta.env[key]) {
-      warnings.push(`${key} not set - Supabase features will be disabled`);
-    }
-  }
-
-  return {
-    valid: missing.length === 0,
-    missing,
-    warnings,
-  };
-}
-
-// Validate and log warnings in development
-const validation = validateEnvironment();
+// Warn in development if Supabase credentials are missing
 if (import.meta.env.DEV) {
-  validation.warnings.forEach(warning => console.warn(`[Supabase] ${warning}`));
-  if (!validation.valid) {
-    console.error('[Supabase] Missing required environment variables:', validation.missing);
+  if (!import.meta.env.VITE_SUPABASE_URL) {
+    console.warn('[Supabase] VITE_SUPABASE_URL not set - using default');
+  }
+  if (!import.meta.env.VITE_SUPABASE_ANON_KEY) {
+    console.warn('[Supabase] VITE_SUPABASE_ANON_KEY not set - Supabase features disabled');
   }
 }
 

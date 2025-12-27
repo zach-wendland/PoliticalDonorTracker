@@ -1,8 +1,7 @@
 // Political Finance API Service
 // Handles OpenFEC, Senate LDA, and ProPublica Nonprofit APIs
 
-import { appCache } from './cache';
-import type { ICache, IPoliticalApiService, PoliticalApiConfig } from './interfaces';
+import { appCache, SimpleCache } from './cache';
 import type {
   FECCandidate,
   FECCommittee,
@@ -27,23 +26,78 @@ import type {
 
 import { API_CONFIG, DEFAULT_CACHE_TTL } from '../config/api';
 
-// Resolved config type with required cacheTTL
-interface ResolvedConfig {
+// Profile fetch result - always from API (no mock fallback)
+export interface ProfileFetchResult<T> {
+  data: T | null;
+  source: 'api';
+  error?: string;
+}
+
+export interface IPoliticalApiService {
+  // Status & Rate Limiting
+  getApiStatus(): PoliticalApiStatus;
+
+  // OpenFEC API
+  searchCandidates(params: CandidateSearchParams): Promise<FECApiResponse<FECCandidate>>;
+  searchCommittees(params: CommitteeSearchParams): Promise<FECApiResponse<FECCommittee>>;
+  searchContributions(params: ContributionSearchParams): Promise<FECApiResponse<FECContribution>>;
+  searchDisbursements(committeeId: string): Promise<FECApiResponse<FECDisbursement>>;
+  searchIndependentExpenditures(candidateId?: string): Promise<FECApiResponse<FECIndependentExpenditure>>;
+
+  // Senate LDA API
+  searchLobbyists(params: LobbyistSearchParams): Promise<LDAApiResponse>;
+
+  // ProPublica Nonprofit API
+  searchNonprofits(params: NonprofitSearchParams): Promise<NonprofitSearchResponse>;
+  getNonprofitByEIN(ein: string): Promise<NonprofitOrganization>;
+
+  // Aggregated Profiles (UI-Ready Data)
+  fetchDonorProfile(name: string): Promise<ProfileFetchResult<DonorProfile>>;
+  fetchRecipientProfile(query: string): Promise<ProfileFetchResult<RecipientProfile>>;
+  fetchLobbyistProfile(name: string): Promise<ProfileFetchResult<LobbyistProfile>>;
+
+  // Cache Management
+  clearCache(): void;
+  resetRateLimits(): void;
+}
+
+// Configuration for the Political API service
+export interface PoliticalApiConfig {
   openfecApiKey?: string;
-  openfecBaseUrl: string;
-  senateLDABaseUrl: string;
-  propublicaBaseUrl: string;
-  cacheTTL: Required<NonNullable<PoliticalApiConfig['cacheTTL']>>;
+  openfecBaseUrl?: string;
+  senateLDABaseUrl?: string;
+  propublicaBaseUrl?: string;
+  cacheTTL?: {
+    candidates?: number;
+    committees?: number;
+    contributions?: number;
+    disbursements?: number;
+    lobbyists?: number;
+    nonprofits?: number;
+    profiles?: number;
+  };
 }
 
 export class PoliticalApiService implements IPoliticalApiService {
-  private static instance: PoliticalApiService;
-  private cache: ICache;
-  private config: ResolvedConfig;
-  private requestCache: Map<string, Promise<unknown>> = new Map();
+  private cache: SimpleCache;
+  private config: {
+    openfecApiKey?: string;
+    openfecBaseUrl: string;
+    senateLDABaseUrl: string;
+    propublicaBaseUrl: string;
+    cacheTTL: {
+      candidates: number;
+      committees: number;
+      contributions: number;
+      disbursements: number;
+      lobbyists: number;
+      nonprofits: number;
+      profiles: number;
+    };
+  };
   private rateLimitCalls: Map<string, number[]> = new Map();
 
-  constructor(cache: ICache = appCache, config: PoliticalApiConfig = {}) {
+  constructor(cache: SimpleCache = appCache, config: PoliticalApiConfig = {}) {
     this.cache = cache;
     this.config = {
       openfecApiKey: config.openfecApiKey,
@@ -60,13 +114,6 @@ export class PoliticalApiService implements IPoliticalApiService {
         profiles: config.cacheTTL?.profiles ?? DEFAULT_CACHE_TTL.profiles,
       },
     };
-  }
-
-  static getInstance(): PoliticalApiService {
-    if (!PoliticalApiService.instance) {
-      PoliticalApiService.instance = new PoliticalApiService();
-    }
-    return PoliticalApiService.instance;
   }
 
   // ============================================================================
@@ -157,29 +204,14 @@ export class PoliticalApiService implements IPoliticalApiService {
     fetcher: () => Promise<T>,
     ttlMinutes: number
   ): Promise<T> {
-    // Check cache
     const cached = this.cache.get<T>(cacheKey);
     if (cached) {
       return cached;
     }
 
-    // Check for pending request (deduplication)
-    const pending = this.requestCache.get(cacheKey) as Promise<T> | undefined;
-    if (pending) {
-      return pending;
-    }
-
-    // Create new request
-    const request = fetcher();
-    this.requestCache.set(cacheKey, request);
-
-    try {
-      const result = await request;
-      this.cache.set(cacheKey, result, ttlMinutes);
-      return result;
-    } finally {
-      this.requestCache.delete(cacheKey);
-    }
+    const result = await fetcher();
+    this.cache.set(cacheKey, result, ttlMinutes);
+    return result;
   }
 
   // ============================================================================
@@ -582,7 +614,6 @@ export class PoliticalApiService implements IPoliticalApiService {
 
   clearCache(): void {
     this.cache.clear();
-    this.requestCache.clear();
   }
 
   resetRateLimits(): void {
@@ -590,25 +621,13 @@ export class PoliticalApiService implements IPoliticalApiService {
   }
 }
 
-/**
- * Factory function for creating PoliticalApiService instances
- * Use this for dependency injection in tests
- *
- * @param cache - Cache implementation (defaults to feedCache singleton)
- * @param config - API configuration overrides
- * @returns New PoliticalApiService instance
- *
- * @example
- * // In tests:
- * const mockCache = { get: vi.fn(), set: vi.fn(), ... };
- * const service = createPoliticalApiService(mockCache, { openfecApiKey: 'TEST_KEY' });
- */
+// Factory for tests - accepts mock cache and config overrides
 export function createPoliticalApiService(
-  cache: ICache = appCache,
+  cache: SimpleCache = appCache,
   config: PoliticalApiConfig = {}
 ): IPoliticalApiService {
   return new PoliticalApiService(cache, config);
 }
 
 // Export singleton instance for app use
-export const politicalApiService = PoliticalApiService.getInstance();
+export const politicalApiService = new PoliticalApiService();

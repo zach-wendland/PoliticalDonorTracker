@@ -1,14 +1,18 @@
 // Simple TTL-based in-memory cache
 // Used by services for API response caching
 
-import type { ICache, ICacheWithStats, CacheStats } from './interfaces';
+export interface CacheStats {
+  total: number;
+  valid: number;
+  expired: number;
+}
 
 interface CacheEntry<T> {
   data: T;
   expiresAt: number;
 }
 
-export class SimpleCache implements ICacheWithStats {
+export class SimpleCache {
   private cache: Map<string, CacheEntry<unknown>> = new Map();
   private defaultTTLMinutes: number;
 
@@ -76,8 +80,8 @@ export class SimpleCache implements ICacheWithStats {
   }
 }
 
-// Factory function for creating cache instances
-export function createCache(defaultTTLMinutes: number = 5): ICache {
+// Factory for tests - creates cache with custom TTL
+export function createCache(defaultTTLMinutes: number = 5): SimpleCache {
   return new SimpleCache(defaultTTLMinutes);
 }
 
