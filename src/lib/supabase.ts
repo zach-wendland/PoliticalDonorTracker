@@ -6,22 +6,19 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 // Warn in development if Supabase credentials are missing
 if (import.meta.env.DEV) {
   if (!import.meta.env.VITE_SUPABASE_URL) {
-    console.warn('[Supabase] VITE_SUPABASE_URL not set - using default');
+    console.warn('[Supabase] VITE_SUPABASE_URL not set - Supabase features will be disabled');
   }
   if (!import.meta.env.VITE_SUPABASE_ANON_KEY) {
     console.warn('[Supabase] VITE_SUPABASE_ANON_KEY not set - Supabase features disabled');
   }
 }
 
-// Default URL for the stonk-data project (public, safe to include)
-const DEFAULT_SUPABASE_URL = 'https://zgjcdrpcdnommxtahdpr.supabase.co';
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-// Create client only if anon key is available (prevents crash on missing config)
+// Create client only if both URL and anon key are available (prevents crash on missing config)
 // Using null when not configured allows the app to still load with degraded functionality
-export const supabase: SupabaseClient | null = supabaseAnonKey
+export const supabase: SupabaseClient | null = supabaseUrl && supabaseAnonKey
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
 

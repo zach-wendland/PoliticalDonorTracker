@@ -67,13 +67,13 @@ export function NetworkTab({
             {!isSupabaseConfigured ? (
               <>
                 <p className="text-sm text-slate-400 mb-4">
-                  Configure your Supabase connection to visualize donor-media relationships from the stonk-data project.
+                  Configure your Supabase connection to visualize donor-media relationships.
                 </p>
                 <div className="bg-slate-800/50 rounded-lg p-4 text-left text-xs">
                   <p className="text-slate-300 font-mono mb-2">Add to .env:</p>
                   <code className="text-emerald-400">
-                    VITE_SUPABASE_URL=https://zgjcdrpcdnommxtahdpr.supabase.co<br />
-                    VITE_SUPABASE_ANON_KEY=your_anon_key
+                    VITE_SUPABASE_URL=https://your-project.supabase.co<br />
+                    VITE_SUPABASE_ANON_KEY=your_anon_key_here
                   </code>
                 </div>
               </>

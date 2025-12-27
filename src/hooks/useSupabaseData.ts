@@ -1,7 +1,7 @@
 // React hook for consuming Supabase enriched political data
 
 import { useState, useCallback, useEffect } from 'react';
-import { supabaseService } from '../services/supabaseService';
+import { useServices } from '../contexts/ServicesContext';
 import type {
   SupabaseDonor,
   MediaFunding,
@@ -46,6 +46,9 @@ interface UseSupabaseDataReturn {
 }
 
 export function useSupabaseData(): UseSupabaseDataReturn {
+  // Get services from context for dependency injection
+  const { supabaseService } = useServices();
+
   // Data states
   const [donors, setDonors] = useState<SupabaseDonor[]>([]);
   const [mediaFunding, setMediaFunding] = useState<MediaFunding[]>([]);
@@ -79,19 +82,19 @@ export function useSupabaseData(): UseSupabaseDataReturn {
     } finally {
       setIsLoadingDonors(false);
     }
-  }, [isConfigured]);
+  }, [isConfigured, supabaseService]);
 
   // Fetch single donor by ID
   const fetchDonorById = useCallback(async (id: string): Promise<SupabaseDonor | null> => {
     if (!isConfigured) return null;
     return supabaseService.getDonorById(id);
-  }, [isConfigured]);
+  }, [isConfigured, supabaseService]);
 
   // Search donors by name
   const searchDonors = useCallback(async (name: string): Promise<SupabaseDonor[]> => {
     if (!isConfigured) return [];
     return supabaseService.searchDonorsByName(name);
-  }, [isConfigured]);
+  }, [isConfigured, supabaseService]);
 
   // Fetch media funding
   const fetchMediaFunding = useCallback(async () => {
@@ -102,7 +105,7 @@ export function useSupabaseData(): UseSupabaseDataReturn {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch media funding');
     }
-  }, [isConfigured]);
+  }, [isConfigured, supabaseService]);
 
   // Fetch PAC contributions
   const fetchPacContributions = useCallback(async () => {
@@ -117,7 +120,7 @@ export function useSupabaseData(): UseSupabaseDataReturn {
     } finally {
       setIsLoadingPacData(false);
     }
-  }, [isConfigured]);
+  }, [isConfigured, supabaseService]);
 
   // Fetch PAC contribution details
   const fetchPacContributionDetails = useCallback(async () => {
@@ -132,7 +135,7 @@ export function useSupabaseData(): UseSupabaseDataReturn {
     } finally {
       setIsLoadingPacData(false);
     }
-  }, [isConfigured]);
+  }, [isConfigured, supabaseService]);
 
   // Fetch political recipients
   const fetchPoliticalRecipients = useCallback(async () => {
@@ -144,7 +147,7 @@ export function useSupabaseData(): UseSupabaseDataReturn {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch political recipients');
     }
-  }, [isConfigured]);
+  }, [isConfigured, supabaseService]);
 
   // Fetch donor-media network for D3 visualization
   const fetchDonorMediaNetwork = useCallback(async () => {
@@ -160,7 +163,7 @@ export function useSupabaseData(): UseSupabaseDataReturn {
     } finally {
       setIsLoadingNetwork(false);
     }
-  }, [isConfigured]);
+  }, [isConfigured, supabaseService]);
 
   // Fetch all data
   const fetchAllData = useCallback(async () => {
@@ -193,7 +196,7 @@ export function useSupabaseData(): UseSupabaseDataReturn {
     setPacContributionDetails([]);
     setPoliticalRecipients([]);
     setDonorMediaNetwork(null);
-  }, []);
+  }, [supabaseService]);
 
   // Auto-fetch network data on mount if configured
   useEffect(() => {

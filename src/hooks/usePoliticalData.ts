@@ -1,7 +1,7 @@
 // React hook for consuming political finance data
 
 import { useState, useCallback, useEffect } from 'react';
-import { politicalApiService } from '../services/politicalApiService';
+import { useServices } from '../contexts/ServicesContext';
 import type {
   DonorProfile,
   LobbyistProfile,
@@ -57,6 +57,9 @@ interface UsePoliticalDataReturn {
 }
 
 export function usePoliticalData(): UsePoliticalDataReturn {
+  // Get services from context for dependency injection
+  const { politicalApiService } = useServices();
+
   // Profile states
   const [donorProfile, setDonorProfile] = useState<DonorProfile | null>(null);
   const [recipientProfile, setRecipientProfile] = useState<RecipientProfile | null>(null);
@@ -91,7 +94,7 @@ export function usePoliticalData(): UsePoliticalDataReturn {
   // Refresh API status
   const refreshApiStatus = useCallback(() => {
     setApiStatus(politicalApiService.getApiStatus());
-  }, []);
+  }, [politicalApiService]);
 
   // Refresh status periodically
   useEffect(() => {
@@ -119,7 +122,7 @@ export function usePoliticalData(): UsePoliticalDataReturn {
       setIsLoadingDonor(false);
       refreshApiStatus();
     }
-  }, [refreshApiStatus]);
+  }, [politicalApiService, refreshApiStatus]);
 
   // Search recipient (candidate or committee)
   const searchRecipient = useCallback(async (query: string) => {
@@ -141,7 +144,7 @@ export function usePoliticalData(): UsePoliticalDataReturn {
       setIsLoadingRecipient(false);
       refreshApiStatus();
     }
-  }, [refreshApiStatus]);
+  }, [politicalApiService, refreshApiStatus]);
 
   // Search lobbyist by name
   const searchLobbyist = useCallback(async (name: string) => {
@@ -163,7 +166,7 @@ export function usePoliticalData(): UsePoliticalDataReturn {
       setIsLoadingLobbyist(false);
       refreshApiStatus();
     }
-  }, [refreshApiStatus]);
+  }, [politicalApiService, refreshApiStatus]);
 
   // Search candidates
   const searchCandidates = useCallback(async (query: string, state?: string, party?: string) => {
@@ -184,7 +187,7 @@ export function usePoliticalData(): UsePoliticalDataReturn {
       setIsLoadingCandidates(false);
       refreshApiStatus();
     }
-  }, [refreshApiStatus]);
+  }, [politicalApiService, refreshApiStatus]);
 
   // Search committees
   const searchCommittees = useCallback(async (query: string, state?: string) => {
@@ -204,7 +207,7 @@ export function usePoliticalData(): UsePoliticalDataReturn {
       setIsLoadingCommittees(false);
       refreshApiStatus();
     }
-  }, [refreshApiStatus]);
+  }, [politicalApiService, refreshApiStatus]);
 
   // Search contributions
   const searchContributions = useCallback(async (contributorName: string, state?: string) => {
@@ -224,7 +227,7 @@ export function usePoliticalData(): UsePoliticalDataReturn {
       setIsLoadingContributions(false);
       refreshApiStatus();
     }
-  }, [refreshApiStatus]);
+  }, [politicalApiService, refreshApiStatus]);
 
   // Search lobbyist filings
   const searchLobbyistFilings = useCallback(async (registrantName?: string, clientName?: string) => {
@@ -244,13 +247,13 @@ export function usePoliticalData(): UsePoliticalDataReturn {
       setIsLoadingFilings(false);
       refreshApiStatus();
     }
-  }, [refreshApiStatus]);
+  }, [politicalApiService, refreshApiStatus]);
 
   // Clear cache
   const clearCache = useCallback(() => {
     politicalApiService.clearCache();
     refreshApiStatus();
-  }, [refreshApiStatus]);
+  }, [politicalApiService, refreshApiStatus]);
 
   // Computed loading state
   const isLoading = isLoadingDonor || isLoadingRecipient || isLoadingLobbyist ||

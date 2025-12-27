@@ -27,28 +27,29 @@ npm test -- -t "cache expiration"            # Run tests matching pattern
 ### Component Structure
 
 - **Entry**: `src/main.tsx` → `src/App.tsx` → `src/components/PoliticalDonorTracker.tsx`
-- **Tab Components** (`src/components/tabs/`): DashboardTab, DonorsTab, RecipientsTab, LobbyistsTab, NetworkTab, SourcesTab, FeedTab
+- **Tab Components** (`src/components/tabs/`): DashboardTab, DonorsTab, NetworkTab, MoneyTrailExplorer
 - **Card Components** (`src/components/cards/`): DonorCard, RecipientCard, LobbyistCard, SourceCard
 - **D3 Visualizations** (`src/components/d3/`): DonorMediaNetwork, useForceLayout
 - **Error Handling**: ErrorBoundary component with HOC wrapper
 
 ### Service Layer
 
-Services use dependency injection via interfaces for testability (`src/services/interfaces/`):
+Services use dependency injection via React Context for testability. Interfaces are co-located with implementations:
 
-- `politicalApiService.ts` - OpenFEC, Senate LDA, ProPublica APIs with rate limiting and caching
-- `supabaseService.ts` - Supabase queries for donors, media_funding, PAC contributions
-- `feedService.ts` - RSS feed aggregation with multi-proxy distribution using DOMParser
-- `feedCache.ts` - TTL-based in-memory cache
+- `politicalApiService.ts` - OpenFEC, Senate LDA, ProPublica APIs with rate limiting and caching (exports `IPoliticalApiService`, `createPoliticalApiService`)
+- `supabaseService.ts` - Supabase queries for donors, media_funding, PAC contributions, network graph data (exports `ISupabaseService`, `createSupabaseService`)
+- `cache.ts` - TTL-based in-memory cache with expiration tracking (exports `SimpleCache`, `createCache`)
 
-Interface contracts: `ICache`, `ISupabaseService`, `IFeedService`, `IPoliticalApiService`
+Factory functions create service instances that are injected via `ServicesContext`. `src/App.tsx` calls `createDefaultServices()` and wraps the app in `<ServicesProvider>`. Components access services via `useServices()` hook.
+
+**Memory Management**: `src/main.tsx` runs periodic cache cleanup via `setInterval(() => appCache.clearExpired(), 60000)` to prevent memory leaks from expired cache entries.
 
 **Important**: Services return real API data only - no mock data fallbacks. When APIs are unavailable, errors are surfaced to users.
 
 ### Hooks
 
-- `usePoliticalData.ts` - FEC/Senate API state, loading/error handling, search actions
-- `useSupabaseData.ts` - Supabase data fetching for network visualization
+- `usePoliticalData.ts` - FEC/Senate API state, loading/error handling, search actions. Uses `useServices()` to access `politicalApiService`
+- `useSupabaseData.ts` - Supabase data fetching for network visualization. Uses `useServices()` to access `supabaseService`
 
 ### D3 + React Integration
 
@@ -57,10 +58,11 @@ D3 handles physics/layout calculations, React handles DOM rendering. The simulat
 ### Data Flow for Network Visualization
 
 1. `useSupabaseData` calls `supabaseService.getDonorMediaNetwork()`
-2. Service queries `donors` + `media_funding` tables, builds graph structure
-3. `DonorMediaNetwork` receives `{ nodes: NetworkNode[], links: NetworkLink[] }`
-4. `useForceLayout` runs D3 force simulation, returns positioned nodes/links
-5. React renders SVG elements based on simulation output
+2. Service queries `network_nodes` + `network_edges` tables from Supabase
+3. Maps database columns to frontend types (`NetworkNode`, `NetworkLink`)
+4. `DonorMediaNetwork` receives `{ nodes: NetworkNode[], links: NetworkLink[] }`
+5. `useForceLayout` runs D3 force simulation, returns positioned nodes/links
+6. React renders SVG elements based on simulation output
 
 ## Environment Variables
 
@@ -78,9 +80,10 @@ Environment validation in `src/lib/supabase.ts` logs warnings in development whe
 Profile fetch methods return `{ data: T | null; source: 'api'; error?: string }`. No mock data - errors are surfaced to users with helpful messages.
 
 ### Supabase Integration
-- Client initialized in `src/lib/supabase.ts` with `validateEnvironment()`
+- Client initialized in `src/lib/supabase.ts` with inline environment warnings in development
 - Service layer checks `isSupabaseConfigured()` before queries
-- Tables: `donors`, `media_funding`, `pac_contributions`, `pac_contributions_detail`, `political_recipients`
+- Tables: `donors`, `media_funding`, `pac_contributions`, `pac_contributions_detail`, `political_recipients`, `network_nodes`, `network_edges`
+- Network graph uses `network_nodes` and `network_edges` tables for D3 visualization data
 
 ### RSS Feed Parsing
 Uses browser-native DOMParser (not regex) for XML parsing. Multi-proxy fallback: rss2json → allorigins → corsproxy.
@@ -106,7 +109,33 @@ Test setup in `src/test/setup.ts` provides global mocks for:
 - `matchMedia` (UI components)
 - `IntersectionObserver`
 
-Existing tests: `src/services/feedCache.test.ts`, `src/utils/formatting.test.ts`
+### Test Structure
+
+- **Unit Tests**: Mock dependencies using factory functions
+  - `cache.test.ts` - TTL expiration, memory management, clearExpired()
+  - `politicalApiService.test.ts` - Rate limiting, caching, API error handling
+  - `feedCache.test.ts` - RSS feed caching behavior
+  - `formatting.test.ts` - Utility function validation
+
+- **Integration Tests**: Connect to real Supabase database
+  - `supabaseService.integration.test.ts` - Real database queries, uses `describe.skipIf(!supabase)` to skip when unconfigured
+  - Creates test data in `beforeAll()`, cleans up in `afterAll()`
+  - Validates against actual production data (20 donors, 3 media outlets, 104 network nodes)
+
+### Writing Tests
+
+Mock services in tests by passing mock dependencies to factory functions:
+
+```typescript
+const mockCache: SimpleCache = {
+  get: vi.fn().mockReturnValue(null),
+  set: vi.fn(),
+  // ... other methods
+};
+const service = createPoliticalApiService(mockCache);
+```
+
+Integration tests require `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` environment variables.
 
 ## Deployment
 
